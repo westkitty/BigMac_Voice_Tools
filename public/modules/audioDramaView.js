@@ -5,7 +5,7 @@ import { renderSpeakerMapping, getSpeakerStatus, propagateMappingsToLines } from
 import { preflightRenderLine } from "./audioDrama/renderPreflight.js";
 import { renderLineTakes } from "./audioDrama/takeReview.js";
 import { handleRenderReadyLines } from "./audioDrama/sceneRender.js";
-import { resetPreviewAssembly } from "./audioDrama/previewAssembly.js";
+import { resetPreviewAssembly, loadRecentPreviews } from "./audioDrama/previewAssembly.js";
 
 export function renderCharacterVoiceOptions() {
   const select = $("characterVoice");
@@ -80,6 +80,7 @@ export function renderDrama() {
   const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
   renderParsedLines(scene);
   resetPreviewAssembly();
+  loadRecentPreviews();
 }
 
 // When speaker mapping changes, we re-propagate and re-render

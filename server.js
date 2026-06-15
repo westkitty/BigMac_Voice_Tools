@@ -362,7 +362,7 @@ async function route(req, res) {
       sendJson(res, 201, { scene: await store.saveScene(body) });
       return;
     }
-    if (url.pathname.startsWith("/api/scenes/") && req.method === "GET" && !["/api/scenes/selected"].includes(url.pathname) && !url.pathname.startsWith("/api/scenes/render")) {
+    if (url.pathname.startsWith("/api/scenes/") && req.method === "GET" && !["/api/scenes/selected", "/api/scenes/previews"].includes(url.pathname) && !url.pathname.startsWith("/api/scenes/render")) {
       const scene = await store.getScene(decodeURIComponent(url.pathname.slice("/api/scenes/".length)));
       if (!scene) throw new Error("Scene was not found.");
       sendJson(res, 200, { scene });
@@ -525,6 +525,17 @@ async function route(req, res) {
         projectId: url.searchParams.get("projectId") || "",
         sceneId: url.searchParams.get("sceneId") || ""
       }));
+      return;
+    }
+    if (url.pathname === "/api/scenes/previews" && req.method === "GET") {
+      const projectId = url.searchParams.get("projectId") || "";
+      const sceneId = url.searchParams.get("sceneId") || "";
+      if (!projectId || !sceneId) {
+        res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+        res.end(JSON.stringify({ ok: false, error: "projectId and sceneId are required." }) + "\n");
+        return;
+      }
+      sendJson(res, 200, { previews: await store.listPreviews({ projectId, sceneId }) });
       return;
     }
     if (url.pathname === "/api/scenes/preview" && req.method === "POST") {

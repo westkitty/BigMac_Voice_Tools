@@ -1,16 +1,36 @@
 import { $, escapeHtml, state, setDramaStatus } from "../state.js";
 import { api } from "../api.js";
 
+let activePreviewRemotePath = "";
+
 /**
  * Initialize preview assembly event bindings
  */
 export function initPreviewAssembly() {
   const btn = $("buildScenePreviewButton");
-  if (!btn) return;
+  if (btn) {
+    btn.addEventListener("click", async () => {
+      await handleBuildScenePreview();
+    });
+  }
 
-  btn.addEventListener("click", async () => {
-    await handleBuildScenePreview();
-  });
+  const copyBtn = $("previewCopyPathBtn");
+  if (copyBtn) {
+    copyBtn.addEventListener("click", () => {
+      if (!activePreviewRemotePath) {
+        setDramaStatus("No preview is currently loaded to copy path.");
+        return;
+      }
+      navigator.clipboard.writeText(activePreviewRemotePath).then(() => {
+        const originalText = copyBtn.textContent;
+        copyBtn.textContent = "Copied!";
+        setTimeout(() => { copyBtn.textContent = originalText; }, 1500);
+        setDramaStatus("Copied remote preview path to clipboard.");
+      }).catch(err => {
+        setDramaStatus("Failed to copy path: " + err.message);
+      });
+    });
+  }
 }
 
 /**
@@ -139,6 +159,15 @@ export async function handleBuildScenePreview() {
       audioContainer.style.display = "block";
     }
 
+    const openLink = $("previewOpenLink");
+    const downloadLink = $("previewDownloadLink");
+    if (openLink) openLink.href = res.preview.audioUrl;
+    if (downloadLink) downloadLink.href = res.preview.audioUrl;
+    activePreviewRemotePath = res.preview.remotePath;
+
+    // Refresh the recent previews list
+    await loadRecentPreviews();
+
   } catch (error) {
     setDramaStatus(`Preview assembly failed: ${error.message}`);
     
@@ -184,6 +213,8 @@ export function resetPreviewAssembly() {
   const audioContainer = $("previewAudioContainer");
   const audioPlayer = $("previewAudioPlayer");
   const summaryContainer = $("previewAssemblySummary");
+  const openLink = $("previewOpenLink");
+  const downloadLink = $("previewDownloadLink");
 
   if (audioContainer) audioContainer.style.display = "none";
   if (audioPlayer) {
@@ -193,6 +224,114 @@ export function resetPreviewAssembly() {
   if (summaryContainer) {
     summaryContainer.innerHTML = "";
     summaryContainer.classList.add("hidden");
+  }
+  if (openLink) openLink.href = "#";
+  if (downloadLink) downloadLink.href = "#";
+  activePreviewRemotePath = "";
+}
+
+/**
+ * Load and render the list of recent previews for the active project and scene
+ */
+export async function loadRecentPreviews() {
+  const projectId = $("projectSelect")?.value;
+  const sceneId = state.currentSceneId || state.scenes?.[0]?.id;
+  const listContainer = $("latestPreviewsList");
+  if (!listContainer) return;
+
+  if (!projectId || !sceneId) {
+    listContainer.innerHTML = `<div style="font-size: 0.75rem; color: var(--muted); font-style: italic;">Select a project and scene to load previews.</div>`;
+    return;
+  }
+
+  try {
+    const res = await api(`/api/scenes/previews?projectId=${encodeURIComponent(projectId)}&sceneId=${encodeURIComponent(sceneId)}`);
+    const previews = res.previews || [];
+    if (previews.length === 0) {
+      listContainer.innerHTML = `<div style="font-size: 0.75rem; color: var(--muted); font-style: italic;">No previews generated yet.</div>`;
+      return;
+    }
+
+    // Sort descending by createdAt
+    previews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+
+    listContainer.innerHTML = previews.map(p => {
+      const dateStr = new Date(p.createdAt).toLocaleString(undefined, {
+        month: "short",
+        day: "numeric",
+        hour: "2-digit",
+        minute: "2-digit",
+        second: "2-digit"
+      });
+      const duration = p.durationEstimateMs ? `${(p.durationEstimateMs / 1000).toFixed(2)}s` : "unknown";
+      const gaps = p.gapsMs !== undefined ? `${p.gapsMs}ms` : "350ms";
+      const fades = `In:${p.fadeInMs || 0}ms|Out:${p.fadeOutMs || 0}ms`;
+      const included = p.includedLineIds ? p.includedLineIds.length : 0;
+      const skipped = p.skippedLineIds ? p.skippedLineIds.length : 0;
+
+      // Safe link to play
+      const audioUrl = `/api/audio?path=${encodeURIComponent(p.remotePath)}`;
+
+      return `
+        <div class="compact-card" style="display: flex; flex-direction: column; gap: 4px; padding: 8px; font-size: 0.75rem; background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.04); margin-bottom: 4px; border-radius: 4px;">
+          <div style="display: flex; justify-content: space-between; align-items: center;">
+            <strong style="color: var(--cyan);">${escapeHtml(dateStr)}</strong>
+            <div style="display: flex; gap: 6px;">
+              <button class="chip play-preview-btn" data-url="${escapeHtml(audioUrl)}" data-path="${escapeHtml(p.remotePath)}" style="padding: 2px 6px; font-size: 0.7rem; cursor: pointer; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text);">Play</button>
+              <a href="${escapeHtml(audioUrl)}" target="_blank" class="chip" style="padding: 2px 6px; font-size: 0.7rem; text-decoration: none; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text);">Open</a>
+              <a href="${escapeHtml(audioUrl)}" download class="chip" style="padding: 2px 6px; font-size: 0.7rem; text-decoration: none; border: 1px solid rgba(255,255,255,0.1); background: rgba(255,255,255,0.05); color: var(--text);">Download</a>
+            </div>
+          </div>
+          <div style="color: var(--muted); font-size: 0.7rem; display: flex; flex-wrap: wrap; gap: 8px;">
+            <span>Dur: ${duration}</span>
+            <span>Gap: ${gaps}</span>
+            <span>Fades: ${fades}</span>
+            <span>Inc: ${included} / Skip: ${skipped}</span>
+          </div>
+          <div style="font-size: 0.65rem; color: var(--muted); word-break: break-all; margin-top: 2px;">
+            Path: ${escapeHtml(p.remotePath)}
+          </div>
+        </div>
+      `;
+    }).join("");
+
+    // Bind event listeners for Play buttons
+    listContainer.querySelectorAll(".play-preview-btn").forEach(btn => {
+      btn.addEventListener("click", () => {
+        const url = btn.dataset.url;
+        const path = btn.dataset.path;
+        const audioPlayer = $("previewAudioPlayer");
+        const audioContainer = $("previewAudioContainer");
+        if (audioPlayer && audioContainer) {
+          audioPlayer.src = url;
+          audioPlayer.load();
+          audioPlayer.play();
+          audioContainer.style.display = "block";
+          
+          // Also set the main actions container links
+          const openLink = $("previewOpenLink");
+          const downloadLink = $("previewDownloadLink");
+          if (openLink) openLink.href = url;
+          if (downloadLink) downloadLink.href = url;
+          
+          activePreviewRemotePath = path;
+          
+          // Update the metadata summary if we wish (or just show location)
+          const summaryContainer = $("previewAssemblySummary");
+          if (summaryContainer) {
+            summaryContainer.classList.remove("hidden");
+            summaryContainer.innerHTML = `
+              <div style="margin-bottom: 4px;"><strong>Playing Saved Preview:</strong></div>
+              <div><strong>Location:</strong> <span style="word-break: break-all; color: var(--muted); font-size: 0.7rem;">${escapeHtml(path)}</span></div>
+            `;
+          }
+        }
+      });
+    });
+
+  } catch (err) {
+    console.error("Failed to load recent previews", err);
+    listContainer.innerHTML = `<div style="font-size: 0.75rem; color: var(--red);">Error loading previews: ${escapeHtml(err.message)}</div>`;
   }
 }
 

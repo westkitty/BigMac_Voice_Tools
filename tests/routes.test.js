@@ -407,6 +407,17 @@ test("route-level preview validation and error cases", async () => {
     });
     assert.equal(resNoTakes.response.status, 409);
     assert.equal(resNoTakes.body.code, "NO_SELECTED_TAKES");
+
+    // 7. GET /api/scenes/previews validations
+    const resGetNoProj = await requestJson(baseUrl, "/api/scenes/previews?sceneId=s1");
+    assert.equal(resGetNoProj.response.status, 400);
+
+    const resGetNoScene = await requestJson(baseUrl, "/api/scenes/previews?projectId=p1");
+    assert.equal(resGetNoScene.response.status, 400);
+
+    const resGetValid = await requestJson(baseUrl, "/api/scenes/previews?projectId=p1&sceneId=s1");
+    assert.equal(resGetValid.response.status, 200);
+    assert.ok(Array.isArray(resGetValid.body.previews));
   });
 });
 

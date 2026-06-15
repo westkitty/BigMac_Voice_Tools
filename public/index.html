@@ -309,8 +309,19 @@ UNKNOWN: Is anyone still there?</textarea>
                 </div>
                 <div id="previewAudioContainer" style="margin-bottom: 12px; display: none;">
                   <audio id="previewAudioPlayer" controls style="width: 100%; border-radius: 4px; background: rgba(0,0,0,0.2);"></audio>
+                  <div id="previewAudioActions" style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
+                    <a id="previewOpenLink" href="#" target="_blank" class="chip" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; padding: 4px 10px;">Open Preview</a>
+                    <a id="previewDownloadLink" href="#" download class="chip" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; padding: 4px 10px;">Download Preview</a>
+                    <button id="previewCopyPathBtn" type="button" class="chip" style="font-size: 0.75rem; padding: 4px 10px; cursor: pointer;">Copy Preview Path</button>
+                  </div>
                 </div>
                 <div id="previewAssemblySummary" class="preview-assembly-summary hidden" style="font-size: 0.75rem; color: var(--muted); padding: 8px 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); line-height: 1.5;"></div>
+                <div id="latestPreviewsSection" style="margin-top: 16px; border-top: 1px dashed rgba(255, 255, 255, 0.08); padding-top: 12px;">
+                  <h5 style="margin: 0 0 8px 0; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Recent Previews</h5>
+                  <div id="latestPreviewsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto;">
+                    <div style="font-size: 0.75rem; color: var(--muted); font-style: italic;">No previews generated yet.</div>
+                  </div>
+                </div>
               </div>
 
               <pre id="dramaStatus">Idle.</pre>
