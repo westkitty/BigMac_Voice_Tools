@@ -82,6 +82,14 @@ async function serveStatic(req, res) {
 async function route(req, res) {
   const url = new URL(req.url, `http://${host}:${port}`);
   try {
+    if (url.pathname === "/favicon.ico" && req.method === "GET") {
+      res.writeHead(204, {
+        "content-type": "image/x-icon",
+        "cache-control": "public, max-age=86400"
+      });
+      res.end();
+      return;
+    }
     if (url.pathname === "/api/health" && req.method === "GET") {
       sendJson(res, 200, await getHealth());
       return;
