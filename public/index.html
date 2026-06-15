@@ -281,12 +281,20 @@ UNKNOWN: Is anyone still there?</textarea>
               <div id="previewAssemblyPanel" class="preview-assembly-panel" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
                 <h4 style="margin: 0 0 6px 0; font-size: 0.95rem; color: var(--foreground);">Scene Preview Assembly</h4>
                 <p class="meta-line" style="margin-bottom: 12px; font-size: 0.72rem; color: var(--muted); line-height: 1.4;">
-                  Preview uses selected takes only. Missing selected takes are skipped unless strict mode is enabled. Preview assembly runs locally through BigMac; no cloud upload.
+                  Preview uses selected takes only; it does not render missing lines. Fades are applied to each selected take before preview assembly. Line pause overrides beat the default gap. Preview assembly runs locally through BigMac; no cloud upload.
                 </p>
                 <div class="field-row" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; align-items: flex-end;">
                   <label for="previewGapInput" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; margin: 0; color: var(--muted);">
-                    <span>Gap between lines (ms):</span>
-                    <input type="number" id="previewGapInput" min="0" max="3000" value="350" style="width: 120px; padding: 6px 10px;">
+                    <span>Default gap between lines (ms):</span>
+                    <input type="number" id="previewGapInput" min="0" max="3000" value="350" style="width: 160px; padding: 6px 10px;">
+                  </label>
+                  <label for="previewFadeInInput" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; margin: 0; color: var(--muted);">
+                    <span>Fade in per take (ms):</span>
+                    <input type="number" id="previewFadeInInput" min="0" max="500" value="0" style="width: 120px; padding: 6px 10px;">
+                  </label>
+                  <label for="previewFadeOutInput" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; margin: 0; color: var(--muted);">
+                    <span>Fade out per take (ms):</span>
+                    <input type="number" id="previewFadeOutInput" min="0" max="500" value="0" style="width: 120px; padding: 6px 10px;">
                   </label>
                   <label for="previewModeSelect" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; margin: 0; color: var(--muted); flex-grow: 1;">
                     <span>Missing takes mode:</span>

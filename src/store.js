@@ -333,6 +333,9 @@ export function createStore(rootDir) {
             cfgWeight: parseNumeric(line.speechSettings.cfgWeight),
             seed: parseNumeric(line.speechSettings.seed)
           } : (existingLine?.speechSettings || null);
+          const timing = line.timing ? {
+            pauseAfterMs: parseNumeric(line.timing.pauseAfterMs)
+          } : (existingLine?.timing || null);
           return {
             id: String(line.id || `L${String(index + 1).padStart(3, "0")}`),
             type: ["dialogue", "narration", "action"].includes(line.type) ? line.type : "dialogue",
@@ -344,7 +347,8 @@ export function createStore(rootDir) {
             takes: Math.max(1, Number(line.takes || 1)),
             characterId: String(line.characterId || ""),
             voiceId: String(line.voiceId || ""),
-            speechSettings
+            speechSettings,
+            timing
           };
         }),
         warnings: ensureArray(input.warnings).map(String),
@@ -408,8 +412,12 @@ export function createStore(rootDir) {
         remotePath: input.remotePath,
         createdAt: now,
         lineTakeIds: ensureArray(input.lineTakeIds).map(String),
+        includedLineIds: ensureArray(input.includedLineIds).map(String),
         skippedLineIds: ensureArray(input.skippedLineIds).map(String),
-        gapsMs: Number(input.gapsMs || 350),
+        gapsMs: Number(input.gapsMs !== undefined ? input.gapsMs : 350),
+        fadeInMs: Number(input.fadeInMs || 0),
+        fadeOutMs: Number(input.fadeOutMs || 0),
+        lineTiming: input.lineTiming || {},
         format: input.format || "wav",
         durationEstimateMs: Number(input.durationEstimateMs || 0)
       };

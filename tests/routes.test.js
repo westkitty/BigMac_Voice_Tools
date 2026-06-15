@@ -368,6 +368,38 @@ test("route-level preview validation and error cases", async () => {
     assert.equal(resBadGaps.response.status, 400);
     assert.equal(resBadGaps.body.code, "INVALID_GAP_MS");
 
+    // 5b. Invalid fadeInMs
+    const resBadFadeIn = await requestJson(baseUrl, "/api/scenes/preview", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "p1", sceneId: "s1", fadeInMs: 600 })
+    });
+    assert.equal(resBadFadeIn.response.status, 400);
+    assert.equal(resBadFadeIn.body.code, "INVALID_FADE_IN_MS");
+
+    // 5c. Invalid fadeOutMs
+    const resBadFadeOut = await requestJson(baseUrl, "/api/scenes/preview", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "p1", sceneId: "s1", fadeOutMs: -10 })
+    });
+    assert.equal(resBadFadeOut.response.status, 400);
+    assert.equal(resBadFadeOut.body.code, "INVALID_FADE_OUT_MS");
+
+    // 5d. Invalid lineTiming override
+    const resBadLineTiming = await requestJson(baseUrl, "/api/scenes/preview", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "p1", sceneId: "s1", lineTiming: "invalid-timing" })
+    });
+    assert.equal(resBadLineTiming.response.status, 400);
+    assert.equal(resBadLineTiming.body.code, "INVALID_LINE_TIMING");
+
+    // 5e. Invalid pauseAfterMs in lineTiming
+    const resBadPauseAfter = await requestJson(baseUrl, "/api/scenes/preview", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "p1", sceneId: "s1", lineTiming: { "L001": { "pauseAfterMs": 4000 } } })
+    });
+    assert.equal(resBadPauseAfter.response.status, 400);
+    assert.equal(resBadPauseAfter.body.code, "INVALID_PAUSE_AFTER_MS");
+
     // 6. No selected takes -> 409
     const resNoTakes = await requestJson(baseUrl, "/api/scenes/preview", {
       method: "POST",

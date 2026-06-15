@@ -331,6 +331,7 @@ export function renderParsedLines(scene) {
             <label style="font-size: 0.72rem;"><span>Speed Override</span><input type="number" step="0.05" data-line-field="speechSettings.speed" data-line-id="${escapeHtml(line.id)}" value="${line.speechSettings?.speed !== null && line.speechSettings?.speed !== undefined ? escapeHtml(line.speechSettings.speed) : ""}" placeholder="Inherit (Notes)"></label>
             <label style="font-size: 0.72rem;"><span>Temperature</span><input type="number" step="0.05" data-line-field="speechSettings.temperature" data-line-id="${escapeHtml(line.id)}" value="${line.speechSettings?.temperature !== null && line.speechSettings?.temperature !== undefined ? escapeHtml(line.speechSettings.temperature) : ""}" placeholder="Inherit (Notes)"></label>
             <label style="font-size: 0.72rem;"><span>Seed Override</span><input type="number" data-line-field="speechSettings.seed" data-line-id="${escapeHtml(line.id)}" value="${line.speechSettings?.seed !== null && line.speechSettings?.seed !== undefined ? escapeHtml(line.speechSettings.seed) : ""}" placeholder="Inherit (Notes)"></label>
+            <label style="font-size: 0.72rem;"><span>Pause after (ms)</span><input type="number" min="0" max="3000" data-line-field="timing.pauseAfterMs" data-line-id="${escapeHtml(line.id)}" value="${line.timing?.pauseAfterMs !== null && line.timing?.pauseAfterMs !== undefined ? escapeHtml(line.timing.pauseAfterMs) : ""}" placeholder="Inherit (ms)"></label>
           </div>
           <div class="speech-settings-summary" data-line-id="${escapeHtml(line.id)}" style="margin-top: 8px; padding-top: 8px; border-top: 1px dashed rgba(255,255,255,0.08); font-size: 0.72rem; color: var(--muted);"></div>
           <p class="meta-line" style="margin-top: 6px; font-size: 0.68rem; color: var(--muted); margin-bottom: 0;">Line overrides beat character defaults. Unsupported parameters are saved as notes only.</p>
@@ -425,6 +426,9 @@ function collectEditedScene() {
       cfgWeight: null,
       seed: null
     };
+    updated.timing = {
+      pauseAfterMs: null
+    };
 
     document.querySelectorAll(`[data-line-id="${CSS.escape(line.id)}"]`).forEach((input) => {
       const field = input.dataset.lineField;
@@ -437,6 +441,9 @@ function collectEditedScene() {
       if (field.startsWith("speechSettings.")) {
         const sub = field.slice("speechSettings.".length);
         updated.speechSettings[sub] = val;
+      } else if (field.startsWith("timing.")) {
+        const sub = field.slice("timing.".length);
+        updated.timing[sub] = val;
       } else {
         updated[field] = input.type === "number" ? (val === null ? 0 : val) : val;
       }

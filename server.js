@@ -535,6 +535,9 @@ async function route(req, res) {
           sceneId: body.sceneId,
           mode: body.mode,
           gapsMs: body.gapsMs,
+          fadeInMs: body.fadeInMs,
+          fadeOutMs: body.fadeOutMs,
+          lineTiming: body.lineTiming,
           store
         });
         if (!result.ok) {

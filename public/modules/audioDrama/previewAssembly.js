@@ -30,6 +30,8 @@ export async function handleBuildScenePreview() {
   }
 
   const gapInput = $("previewGapInput");
+  const fadeInInput = $("previewFadeInInput");
+  const fadeOutInput = $("previewFadeOutInput");
   const modeSelect = $("previewModeSelect");
   const btn = $("buildScenePreviewButton");
   const audioContainer = $("previewAudioContainer");
@@ -37,7 +39,19 @@ export async function handleBuildScenePreview() {
   const summaryContainer = $("previewAssemblySummary");
 
   const gapsMs = gapInput ? Number(gapInput.value) : 350;
+  const fadeInMs = fadeInInput ? Number(fadeInInput.value) : 0;
+  const fadeOutMs = fadeOutInput ? Number(fadeOutInput.value) : 0;
   const mode = modeSelect ? modeSelect.value : "skip-missing";
+
+  // Collect line-specific pause overrides
+  const lineTiming = {};
+  document.querySelectorAll('input[data-line-field="timing.pauseAfterMs"]').forEach(input => {
+    const val = input.value;
+    if (val !== undefined && val !== null && val.trim() !== "") {
+      const lineId = input.dataset.lineId;
+      lineTiming[lineId] = { pauseAfterMs: Number(val) };
+    }
+  });
 
   // Reset UI state
   resetPreviewAssembly();
@@ -54,7 +68,10 @@ export async function handleBuildScenePreview() {
         projectId,
         sceneId,
         mode,
-        gapsMs
+        gapsMs,
+        fadeInMs,
+        fadeOutMs,
+        lineTiming
       })
     });
 
@@ -84,6 +101,21 @@ export async function handleBuildScenePreview() {
         `;
       }
 
+      let timingOverridesHtml = "";
+      const overridesList = [];
+      const includedLineIds = res.preview.includedLineIds || res.preview.lineTakeIds || [];
+      if (res.preview.lineTiming) {
+        for (const lineId of includedLineIds) {
+          const timing = res.preview.lineTiming[lineId];
+          if (timing?.pauseAfterMs !== undefined && timing?.pauseAfterMs !== null) {
+            overridesList.push(`Line ${lineId}: ${timing.pauseAfterMs}ms`);
+          }
+        }
+      }
+      if (overridesList.length > 0) {
+        timingOverridesHtml = `<div style="margin-bottom: 4px;"><strong>Line overrides:</strong> ${escapeHtml(overridesList.join(", "))}</div>`;
+      }
+
       summaryContainer.classList.remove("hidden");
       summaryContainer.innerHTML = `
         <div class="preview-stats" style="display: flex; justify-content: space-between; margin-bottom: 8px; font-weight: 600;">
@@ -92,6 +124,9 @@ export async function handleBuildScenePreview() {
           <span>Skipped: ${res.summary.skipped}</span>
         </div>
         <div style="margin-bottom: 4px;"><strong>Duration Estimate:</strong> ${durationText}</div>
+        <div style="margin-bottom: 4px;"><strong>Default Gap:</strong> ${res.preview.gapsMs !== undefined ? res.preview.gapsMs : 350}ms</div>
+        <div style="margin-bottom: 4px;"><strong>Fades:</strong> In: ${res.preview.fadeInMs || 0}ms | Out: ${res.preview.fadeOutMs || 0}ms</div>
+        ${timingOverridesHtml}
         <div><strong>Location:</strong> <span style="word-break: break-all; color: var(--muted); font-size: 0.7rem;">${escapeHtml(res.preview.remotePath)}</span></div>
         ${skippedHtml}
       `;

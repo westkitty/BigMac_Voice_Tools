@@ -197,3 +197,133 @@ test("assembleScenePreview checks allowlist on take path and preview output path
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("assembleScenePreview timing overrides, fades, and ffmpeg command verification", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "bvt-preview-"));
+  try {
+    const store = createStore(dir);
+    await store.saveProject({ id: "p1", name: "Project 1" });
+    await store.saveScene({
+      id: "s1",
+      projectId: "p1",
+      title: "Scene 1",
+      lines: [
+        { id: "L001", speaker: "TIGER", text: "Line 1." },
+        { id: "L002", speaker: "NARRATOR", text: "Line 2." }
+      ]
+    });
+
+    const take1 = await store.saveTake({
+      id: "take-1",
+      voiceId: "voice-1",
+      sourceText: "Line 1",
+      outputPath: "/Volumes/wc2tb/Ai/VoiceTools/chatterbox/outputs/take1.wav",
+      projectId: "p1",
+      sceneId: "s1",
+      lineId: "L001"
+    });
+    const take2 = await store.saveTake({
+      id: "take-2",
+      voiceId: "voice-1",
+      sourceText: "Line 2",
+      outputPath: "/Volumes/wc2tb/Ai/VoiceTools/chatterbox/outputs/take2.wav",
+      projectId: "p1",
+      sceneId: "s1",
+      lineId: "L002"
+    });
+
+    await store.selectTake({ projectId: "p1", sceneId: "s1", lineId: "L001", takeId: take1.id });
+    await store.selectTake({ projectId: "p1", sceneId: "s1", lineId: "L002", takeId: take2.id });
+
+    // Validate invalid fades return 400
+    const resBadFadeIn = await assembleScenePreview({ projectId: "p1", sceneId: "s1", fadeInMs: -5, store });
+    assert.equal(resBadFadeIn.ok, false);
+    assert.equal(resBadFadeIn.code, "INVALID_FADE_IN_MS");
+
+    const resBadFadeOut = await assembleScenePreview({ projectId: "p1", sceneId: "s1", fadeOutMs: 600, store });
+    assert.equal(resBadFadeOut.ok, false);
+    assert.equal(resBadFadeOut.code, "INVALID_FADE_OUT_MS");
+
+    const resBadPause = await assembleScenePreview({
+      projectId: "p1",
+      sceneId: "s1",
+      lineTiming: { "L001": { "pauseAfterMs": 4000 } },
+      store
+    });
+    assert.equal(resBadPause.ok, false);
+    assert.equal(resBadPause.code, "INVALID_PAUSE_AFTER_MS");
+
+    // Success assembly check with timing and fades
+    let runWithInputArgs = null;
+    let runWithInputContent = null;
+    let runArgsList = [];
+
+    const mockRunWithInput = async (cmd, args, input) => {
+      runWithInputArgs = args;
+      runWithInputContent = input;
+      return { ok: true, stdout: "", stderr: "", code: 0 };
+    };
+
+    const mockRun = async (cmd, args) => {
+      runArgsList.push(args);
+      // Durations loop will execute and output durations for files:
+      // take1.wav and take2.wav
+      // We will output:
+      // "1.250000\n0.020000" (first file is 1.25s, second is 0.02s)
+      if (args[1] && args[1].includes("format=duration")) {
+        return { ok: true, stdout: "1.250000\n0.020000\n", stderr: "", code: 0 };
+      }
+      return { ok: true, stdout: "1.62", stderr: "", code: 0 };
+    };
+
+    const res = await assembleScenePreview({
+      projectId: "p1",
+      sceneId: "s1",
+      gapsMs: 350,
+      fadeInMs: 10,
+      fadeOutMs: 35,
+      lineTiming: { "L001": { "pauseAfterMs": 700 } },
+      store,
+      runFn: mockRun,
+      runWithInputFn: mockRunWithInput
+    });
+
+    assert.equal(res.ok, true);
+    assert.equal(res.summary.included, 2);
+    assert.equal(res.summary.skipped, 0);
+
+    // Let's inspect the piped command chain
+    const fullCmd = runWithInputArgs[1];
+    
+    // Duration loop check:
+    // first file has duration 1.25s. Fades are: in 10ms (0.01s), out 35ms (0.035s).
+    // duration (1.25) > fadeIn (0.01) + fadeOut (0.035). No clamping needed.
+    // fadeOutStart = 1.25 - 0.035 = 1.215.
+    // afade filter should contain: afade=t=in:st=0:d=0.0100,afade=t=out:st=1.2150:d=0.0350
+    assert.match(fullCmd, /afade=t=in:st=0:d=0\.0100/);
+    assert.match(fullCmd, /afade=t=out:st=1\.2150:d=0\.0350/);
+
+    // second file has duration 0.02s (20ms).
+    // duration (0.02) < fadeIn (0.01) + fadeOut (0.035). Clamping required!
+    // sum = 0.045s.
+    // activeFadeIn = (0.01 / 0.045) * 0.02 = 0.0044s.
+    // activeFadeOut = (0.035 / 0.045) * 0.02 = 0.0156s.
+    // fadeOutStart = 0.02 - 0.0156 = 0.0044s.
+    // afade filter: afade=t=in:st=0:d=0.0044,afade=t=out:st=0.0044:d=0.0156
+    assert.match(fullCmd, /afade=t=in:st=0:d=0\.0044/);
+    assert.match(fullCmd, /afade=t=out:st=0\.0044:d=0\.0156/);
+
+    // Silence gap checks:
+    // L001 has pauseAfterMs 700ms override, beating default 350ms gap.
+    // So unique silence files should include silence_700.wav.
+    // The concat manifest should contain silence_700.wav.
+    assert.match(fullCmd, /silence_700\.wav/);
+    assert.match(runWithInputContent, /silence_700\.wav/);
+    // And should not contain silence_350.wav because it was overridden.
+    assert.equal(runWithInputContent.includes("silence_350.wav"), false);
+
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+

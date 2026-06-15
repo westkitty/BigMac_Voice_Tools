@@ -365,8 +365,12 @@ test("saving preview persists metadata and lists correctly", async () => {
       sceneId: "s1",
       remotePath: "/Volumes/wc2tb/Ai/VoiceTools/chatterbox/outputs/previews/scene-preview-s1.wav",
       lineTakeIds: ["take1", "take2"],
+      includedLineIds: ["L001", "L002"],
       skippedLineIds: ["L003"],
       gapsMs: 350,
+      fadeInMs: 10,
+      fadeOutMs: 35,
+      lineTiming: { "L001": { "pauseAfterMs": 700 } },
       format: "wav",
       durationEstimateMs: 12345
     });
@@ -375,14 +379,50 @@ test("saving preview persists metadata and lists correctly", async () => {
     assert.equal(list.length, 1);
     assert.equal(list[0].id, preview.id);
     assert.equal(list[0].gapsMs, 350);
+    assert.equal(list[0].fadeInMs, 10);
+    assert.equal(list[0].fadeOutMs, 35);
+    assert.deepEqual(list[0].lineTiming, { "L001": { "pauseAfterMs": 700 } });
     assert.equal(list[0].durationEstimateMs, 12345);
     assert.deepEqual(list[0].lineTakeIds, ["take1", "take2"]);
+    assert.deepEqual(list[0].includedLineIds, ["L001", "L002"]);
     assert.deepEqual(list[0].skippedLineIds, ["L003"]);
 
     const reloaded = createStore(dir);
     const reloadedList = await reloaded.listPreviews({ projectId: "p1" });
     assert.equal(reloadedList.length, 1);
     assert.equal(reloadedList[0].id, preview.id);
+    assert.equal(reloadedList[0].fadeInMs, 10);
+    assert.equal(reloadedList[0].fadeOutMs, 35);
+    assert.deepEqual(reloadedList[0].lineTiming, { "L001": { "pauseAfterMs": 700 } });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("saving scene line persists timing override", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "bvt-store-"));
+  try {
+    const store = createStore(dir);
+    const project = await store.saveProject({ id: "p1", name: "P1" });
+    const scene = await store.saveScene({
+      projectId: "p1",
+      title: "S1",
+      lines: [{
+        id: "L001",
+        speaker: "TIGER",
+        text: "Yo",
+        timing: {
+          pauseAfterMs: 700
+        }
+      }]
+    });
+
+    const reloaded = createStore(dir);
+    const scenes = await reloaded.listScenes("p1");
+    assert.equal(scenes.length, 1);
+    assert.deepEqual(scenes[0].lines[0].timing, {
+      pauseAfterMs: 700
+    });
   } finally {
     await rm(dir, { recursive: true, force: true });
   }
