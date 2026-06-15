@@ -14,6 +14,7 @@ import { analyzeAudio } from "./src/quality.js";
 import { checkParagraphs, formatDocumentForSpeech, parseDialogue, tuneSyntaxForTts } from "./src/scriptTools.js";
 import { createStore } from "./src/store.js";
 import { run } from "./src/system.js";
+import { assembleScenePreview } from "./src/preview.js";
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const publicDir = path.join(__dirname, "public");
@@ -526,8 +527,25 @@ async function route(req, res) {
       }));
       return;
     }
-    if (url.pathname === "/api/scenes/assemble-preview" && req.method === "POST") {
-      sendJson(res, 501, { error: "Preview assembly is deferred until selected-take workflow is proven." });
+    if (url.pathname === "/api/scenes/preview" && req.method === "POST") {
+      try {
+        const body = await readBody(req);
+        const result = await assembleScenePreview({
+          projectId: body.projectId,
+          sceneId: body.sceneId,
+          mode: body.mode,
+          gapsMs: body.gapsMs,
+          store
+        });
+        if (!result.ok) {
+          res.writeHead(result.status || 500, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: result.error, code: result.code, skipped: result.skipped }) + "\n");
+          return;
+        }
+        sendJson(res, 200, result);
+      } catch (err) {
+        sendError(res, err, 500);
+      }
       return;
     }
     if (url.pathname === "/api/generate" && req.method === "POST") {

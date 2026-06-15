@@ -355,3 +355,36 @@ test("saving take stores speech settings metadata", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("saving preview persists metadata and lists correctly", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "bvt-store-"));
+  try {
+    const store = createStore(dir);
+    const preview = await store.savePreview({
+      projectId: "p1",
+      sceneId: "s1",
+      remotePath: "/Volumes/wc2tb/Ai/VoiceTools/chatterbox/outputs/previews/scene-preview-s1.wav",
+      lineTakeIds: ["take1", "take2"],
+      skippedLineIds: ["L003"],
+      gapsMs: 350,
+      format: "wav",
+      durationEstimateMs: 12345
+    });
+
+    const list = await store.listPreviews({ projectId: "p1", sceneId: "s1" });
+    assert.equal(list.length, 1);
+    assert.equal(list[0].id, preview.id);
+    assert.equal(list[0].gapsMs, 350);
+    assert.equal(list[0].durationEstimateMs, 12345);
+    assert.deepEqual(list[0].lineTakeIds, ["take1", "take2"]);
+    assert.deepEqual(list[0].skippedLineIds, ["L003"]);
+
+    const reloaded = createStore(dir);
+    const reloadedList = await reloaded.listPreviews({ projectId: "p1" });
+    assert.equal(reloadedList.length, 1);
+    assert.equal(reloadedList[0].id, preview.id);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+

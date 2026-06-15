@@ -3,6 +3,7 @@ import { $, setMessage, state } from "./modules/state.js";
 import { loadHealth, loadLogs } from "./modules/healthView.js";
 import { loadDrama, createCharacter, createProject, parseRawScript, refreshSelectedTakes, renderFirstLine, saveParsedScene, handleRenderReadyLines } from "./modules/audioDramaView.js";
 import { openHelp, openStudioWindow, setView } from "./modules/navigation.js";
+import { initPreviewAssembly } from "./modules/audioDrama/previewAssembly.js";
 import {
   formatDocumentFile,
   generate,
@@ -127,6 +128,7 @@ function bindEvents() {
     $("advancedMode").classList.add("active");
     $("simpleMode").classList.remove("active");
   });
+  initPreviewAssembly();
 }
 
 bindEvents();

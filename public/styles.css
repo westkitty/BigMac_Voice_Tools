@@ -1074,3 +1074,53 @@ pre {
   text-overflow: ellipsis;
   white-space: nowrap;
 }
+
+/* ── Preview Assembly styles ── */
+.preview-assembly-panel {
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.01);
+  transition: all var(--normal) var(--ease);
+}
+.preview-assembly-summary {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-height: 200px;
+  overflow-y: auto;
+  scrollbar-width: thin;
+}
+.preview-assembly-summary::-webkit-scrollbar {
+  width: 5px;
+}
+.preview-assembly-summary::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 3px;
+}
+.preview-summary-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 6px;
+  border-radius: 4px;
+  background: rgba(255, 255, 255, 0.01);
+}
+.preview-summary-item .preview-item-id {
+  font-weight: 600;
+  min-width: 45px;
+}
+.preview-summary-item .preview-item-status {
+  padding: 2px 6px;
+  border-radius: 4px;
+  font-size: 0.65rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+.preview-summary-item.preview-included .preview-item-status {
+  background: rgba(125, 255, 168, 0.1);
+  color: var(--green);
+}
+.preview-summary-item.preview-skipped .preview-item-status {
+  background: rgba(255, 209, 102, 0.1);
+  color: var(--amber);
+}
+

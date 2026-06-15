@@ -277,6 +277,34 @@ UNKNOWN: Is anyone still there?</textarea>
                 <button class="reactive-button" id="refreshSelectedButton" type="button">Refresh Selected Takes</button>
               </div>
               <div id="sceneRenderSummary" class="scene-render-summary hidden" style="margin-top: 12px;"></div>
+              
+              <div id="previewAssemblyPanel" class="preview-assembly-panel" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
+                <h4 style="margin: 0 0 6px 0; font-size: 0.95rem; color: var(--foreground);">Scene Preview Assembly</h4>
+                <p class="meta-line" style="margin-bottom: 12px; font-size: 0.72rem; color: var(--muted); line-height: 1.4;">
+                  Preview uses selected takes only. Missing selected takes are skipped unless strict mode is enabled. Preview assembly runs locally through BigMac; no cloud upload.
+                </p>
+                <div class="field-row" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; align-items: flex-end;">
+                  <label for="previewGapInput" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; margin: 0; color: var(--muted);">
+                    <span>Gap between lines (ms):</span>
+                    <input type="number" id="previewGapInput" min="0" max="3000" value="350" style="width: 120px; padding: 6px 10px;">
+                  </label>
+                  <label for="previewModeSelect" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; margin: 0; color: var(--muted); flex-grow: 1;">
+                    <span>Missing takes mode:</span>
+                    <select id="previewModeSelect" style="padding: 6px 10px; width: 100%;">
+                      <option value="skip-missing">Skip lines without selected takes</option>
+                      <option value="fail-on-missing">Require every line to have a selected take</option>
+                    </select>
+                  </label>
+                </div>
+                <div class="tool-row" style="margin-bottom: 12px;">
+                  <button class="reactive-button primary" id="buildScenePreviewButton" type="button">Build Scene Preview</button>
+                </div>
+                <div id="previewAudioContainer" style="margin-bottom: 12px; display: none;">
+                  <audio id="previewAudioPlayer" controls style="width: 100%; border-radius: 4px; background: rgba(0,0,0,0.2);"></audio>
+                </div>
+                <div id="previewAssemblySummary" class="preview-assembly-summary hidden" style="font-size: 0.75rem; color: var(--muted); padding: 8px 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); line-height: 1.5;"></div>
+              </div>
+
               <pre id="dramaStatus">Idle.</pre>
             </section>
           </div>

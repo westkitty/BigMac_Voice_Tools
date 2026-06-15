@@ -306,3 +306,75 @@ test("route-level render-line validation check cases", async () => {
     assert.equal(resEngineNotConfigured.body.code, "ENGINE_NOT_CONFIGURED");
   });
 });
+
+test("route-level preview validation and error cases", async () => {
+  await withServer(async (baseUrl) => {
+    // 1. Missing Project
+    const resNoProj = await requestJson(baseUrl, "/api/scenes/preview", {
+      method: "POST",
+      body: JSON.stringify({ sceneId: "s1" })
+    });
+    assert.equal(resNoProj.response.status, 400);
+    assert.equal(resNoProj.body.code, "MISSING_PROJECT");
+
+    // 2. Project Not Found
+    const resProjNotFound = await requestJson(baseUrl, "/api/scenes/preview", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "nonexistent", sceneId: "s1" })
+    });
+    assert.equal(resProjNotFound.response.status, 404);
+    assert.equal(resProjNotFound.body.code, "MISSING_PROJECT");
+
+    // Create project
+    await requestJson(baseUrl, "/api/projects", {
+      method: "POST",
+      body: JSON.stringify({ id: "p1", name: "Project 1" })
+    });
+
+    // 3. Scene Not Found
+    const resSceneNotFound = await requestJson(baseUrl, "/api/scenes/preview", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "p1", sceneId: "nonexistent" })
+    });
+    assert.equal(resSceneNotFound.response.status, 404);
+    assert.equal(resSceneNotFound.body.code, "MISSING_SCENE");
+
+    // Create scene
+    await requestJson(baseUrl, "/api/scenes", {
+      method: "POST",
+      body: JSON.stringify({
+        id: "s1",
+        projectId: "p1",
+        title: "Scene 1",
+        lines: [
+          { id: "L001", speaker: "TIGER", text: "Line 1." }
+        ]
+      })
+    });
+
+    // 4. Invalid Mode
+    const resBadMode = await requestJson(baseUrl, "/api/scenes/preview", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "p1", sceneId: "s1", mode: "bad" })
+    });
+    assert.equal(resBadMode.response.status, 400);
+    assert.equal(resBadMode.body.code, "INVALID_PREVIEW_MODE");
+
+    // 5. Invalid Gaps
+    const resBadGaps = await requestJson(baseUrl, "/api/scenes/preview", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "p1", sceneId: "s1", gapsMs: -100 })
+    });
+    assert.equal(resBadGaps.response.status, 400);
+    assert.equal(resBadGaps.body.code, "INVALID_GAP_MS");
+
+    // 6. No selected takes -> 409
+    const resNoTakes = await requestJson(baseUrl, "/api/scenes/preview", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "p1", sceneId: "s1" })
+    });
+    assert.equal(resNoTakes.response.status, 409);
+    assert.equal(resNoTakes.body.code, "NO_SELECTED_TAKES");
+  });
+});
+

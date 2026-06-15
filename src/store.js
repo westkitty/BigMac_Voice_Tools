@@ -11,7 +11,8 @@ const emptyState = {
   projects: [],
   characters: [],
   scenes: [],
-  selectedTakes: []
+  selectedTakes: [],
+  previews: []
 };
 
 function cleanFileName(name) {
@@ -76,6 +77,7 @@ export function createStore(rootDir) {
     merged.characters = ensureArray(merged.characters);
     merged.scenes = ensureArray(merged.scenes);
     merged.selectedTakes = ensureArray(merged.selectedTakes);
+    merged.previews = ensureArray(merged.previews);
     merged.schemaVersion = Math.max(Number(merged.schemaVersion || 1), emptyState.schemaVersion);
     return merged;
   }
@@ -391,6 +393,40 @@ export function createStore(rootDir) {
       const state = await load();
       const manifest = state.selectedTakes.find((item) => item.projectId === projectId && item.sceneId === sceneId);
       return manifest || { projectId, sceneId, selectedTakes: {} };
+    },
+
+    async savePreview(input) {
+      if (!input?.projectId || !input?.sceneId || !input?.remotePath) {
+        throw new Error("projectId, sceneId, and remotePath are required.");
+      }
+      const state = await load();
+      const now = new Date().toISOString();
+      const preview = {
+        id: input.id || randomUUID(),
+        projectId: input.projectId,
+        sceneId: input.sceneId,
+        remotePath: input.remotePath,
+        createdAt: now,
+        lineTakeIds: ensureArray(input.lineTakeIds).map(String),
+        skippedLineIds: ensureArray(input.skippedLineIds).map(String),
+        gapsMs: Number(input.gapsMs || 350),
+        format: input.format || "wav",
+        durationEstimateMs: Number(input.durationEstimateMs || 0)
+      };
+      state.previews = ensureArray(state.previews);
+      state.previews.push(preview);
+      await save(state);
+      return preview;
+    },
+
+    async listPreviews({ projectId, sceneId }) {
+      const state = await load();
+      state.previews = ensureArray(state.previews);
+      return state.previews.filter(
+        (preview) =>
+          (!projectId || preview.projectId === projectId) &&
+          (!sceneId || preview.sceneId === sceneId)
+      );
     }
   };
 }
