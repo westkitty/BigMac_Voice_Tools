@@ -1,6 +1,9 @@
 import { api } from "./api.js";
 import { $, escapeHtml, setDramaStatus, state } from "./state.js";
 import { loadTakes } from "./voiceLabView.js";
+import { renderSpeakerMapping, getSpeakerStatus, propagateMappingsToLines } from "./audioDrama/speakerMapping.js";
+import { preflightRenderLine } from "./audioDrama/renderPreflight.js";
+import { renderLineTakes } from "./audioDrama/takeReview.js";
 
 export function renderCharacterVoiceOptions() {
   const select = $("characterVoice");
@@ -10,15 +13,39 @@ export function renderCharacterVoiceOptions() {
 
 export async function loadDrama() {
   const projectId = $("projectSelect").value || "";
-  const [projectsBody, charactersBody, scenesBody] = await Promise.all([
+  const sceneId = state.currentSceneId || state.scenes[0]?.id || "";
+  
+  const [projectsBody, charactersBody, scenesBody, takesBody] = await Promise.all([
     api("/api/projects"),
     projectId ? api(`/api/characters?projectId=${encodeURIComponent(projectId)}`) : Promise.resolve({ characters: [] }),
-    projectId ? api(`/api/scenes?projectId=${encodeURIComponent(projectId)}`) : Promise.resolve({ scenes: [] })
+    projectId ? api(`/api/scenes?projectId=${encodeURIComponent(projectId)}`) : Promise.resolve({ scenes: [] }),
+    api("/api/takes")
   ]);
+
   state.projects = projectsBody.projects || [];
   state.characters = charactersBody.characters || [];
   state.scenes = scenesBody.scenes || [];
-  if (!$("projectSelect").value && state.projects[0]) $("projectSelect").value = state.projects[0].id;
+  state.takes = takesBody.takes || [];
+
+  if (!$("projectSelect").value && state.projects[0]) {
+    $("projectSelect").value = state.projects[0].id;
+    return loadDrama(); // reload with project
+  }
+
+  // Load selected takes
+  const activeSceneId = state.currentSceneId || state.scenes[0]?.id;
+  if (projectId && activeSceneId) {
+    try {
+      const selectedBody = await api(`/api/scenes/selected?projectId=${encodeURIComponent(projectId)}&sceneId=${encodeURIComponent(activeSceneId)}`);
+      state.selectedTakesMap = selectedBody.selectedTakes || {};
+    } catch (err) {
+      console.error("Failed to load selected takes", err);
+      state.selectedTakesMap = {};
+    }
+  } else {
+    state.selectedTakesMap = {};
+  }
+
   renderDrama();
 }
 
@@ -26,9 +53,53 @@ export function renderDrama() {
   const current = $("projectSelect").value;
   $("projectSelect").innerHTML = `<option value="">No project selected</option>${state.projects.map((project) => `<option value="${escapeHtml(project.id)}">${escapeHtml(project.name)}</option>`).join("")}`;
   if (current) $("projectSelect").value = current;
+
   $("dramaCharacters").innerHTML = state.characters.length
     ? state.characters.map((character) => `<article class="compact-card"><strong>${escapeHtml(character.name)}</strong><div class="meta-line">Voice: ${escapeHtml(state.voices.find((voice) => voice.id === character.voiceId)?.name || "missing")}</div></article>`).join("")
     : `<div class="empty-state">No characters for this project.</div>`;
+
+  renderSpeakerMapping(onSpeakerMappingChanged);
+
+  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+  renderParsedLines(scene);
+}
+
+// When speaker mapping changes, we re-propagate and re-render
+async function onSpeakerMappingChanged() {
+  propagateMappingsToLines();
+  renderSpeakerMapping(onSpeakerMappingChanged);
+  
+  // Update line cards status badges and actions
+  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+  if (scene && scene.lines) {
+    for (const line of scene.lines) {
+      updateLineMappingUI(line);
+    }
+  }
+}
+
+function updateLineMappingUI(line) {
+  const badge = $(`status-badge-${line.id}`);
+  const btn = document.querySelector(`.render-line-btn[data-line-id="${CSS.escape(line.id)}"]`);
+  if (!badge) return;
+
+  const mapping = getSpeakerStatus(line.speaker);
+  let statusClass = "badge-error";
+  if (mapping.status === "Ready") statusClass = "badge-success";
+  else if (mapping.status === "Missing voice" || mapping.status === "Missing character") statusClass = "badge-warning";
+
+  badge.className = `status-badge ${statusClass}`;
+  badge.textContent = mapping.status;
+
+  if (btn) {
+    if (mapping.status === "Ready") {
+      btn.disabled = false;
+      btn.title = "Render line with Chatterbox";
+    } else {
+      btn.disabled = true;
+      btn.title = `Blocked: ${mapping.status}`;
+    }
+  }
 }
 
 export async function createProject(event) {
@@ -65,38 +136,117 @@ export async function createCharacter(event) {
 }
 
 export function renderParsedLines(scene) {
+  const container = $("sceneLineEditor");
   if (!scene?.lines?.length) {
-    $("sceneLineEditor").innerHTML = `<div class="empty-state">No parsed lines yet.</div>`;
+    container.innerHTML = `<div class="empty-state">No parsed lines yet.</div>`;
+    container.classList.add("empty-state");
     return;
   }
-  $("sceneLineEditor").classList.remove("empty-state");
-  $("sceneLineEditor").innerHTML = scene.lines.map((line) => `
-    <article class="line-card">
-      <label><span>Line</span><input data-line-field="id" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.id)}"></label>
-      <label><span>Type</span><select data-line-field="type" data-line-id="${escapeHtml(line.id)}">
-        ${["dialogue", "narration", "action"].map((type) => `<option value="${type}" ${line.type === type ? "selected" : ""}>${type}</option>`).join("")}
-      </select></label>
-      <label><span>Speaker</span><input data-line-field="speaker" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.speaker)}"></label>
-      <label class="wide-field"><span>Text</span><textarea data-line-field="text" data-line-id="${escapeHtml(line.id)}">${escapeHtml(line.text)}</textarea></label>
-      <label><span>Emotion</span><input data-line-field="emotion" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.emotion)}"></label>
-      <label><span>Pace</span><input data-line-field="pace" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.pace)}"></label>
-      <label><span>Delivery cue</span><input data-line-field="deliveryCue" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.deliveryCue)}"></label>
-      <label><span>Takes</span><input type="number" min="1" max="10" data-line-field="takes" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.takes)}"></label>
-    </article>
-  `).join("");
+  container.classList.remove("empty-state");
+
+  container.innerHTML = scene.lines.map((line) => {
+    const isUnknown = line.speaker.toUpperCase() === "UNKNOWN";
+    
+    return `
+      <article class="line-card ${isUnknown ? "unsafe-unknown" : ""}" id="line-card-${escapeHtml(line.id)}">
+        <div class="line-card-header">
+          <div class="line-card-info">
+            <span class="line-badge">${escapeHtml(line.id)}</span>
+            <span class="speaker-badge">${escapeHtml(line.speaker)}</span>
+            <span class="status-badge" id="status-badge-${escapeHtml(line.id)}">Checking...</span>
+          </div>
+          <button class="reactive-button primary render-line-btn" data-line-id="${escapeHtml(line.id)}" type="button">Render Line</button>
+        </div>
+        <div class="line-card-fields">
+          <label><span>Type</span><select data-line-field="type" data-line-id="${escapeHtml(line.id)}">
+            ${["dialogue", "narration", "action"].map((type) => `<option value="${type}" ${line.type === type ? "selected" : ""}>${type}</option>`).join("")}
+          </select></label>
+          <label><span>Speaker</span><input data-line-field="speaker" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.speaker)}"></label>
+          <label class="wide-field"><span>Text</span><textarea data-line-field="text" data-line-id="${escapeHtml(line.id)}">${escapeHtml(line.text)}</textarea></label>
+          <label><span>Emotion</span><input data-line-field="emotion" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.emotion)}"></label>
+          <label><span>Pace</span><input data-line-field="pace" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.pace)}"></label>
+          <label><span>Delivery cue</span><input data-line-field="deliveryCue" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.deliveryCue)}"></label>
+          <label><span>Takes</span><input type="number" min="1" max="10" data-line-field="takes" data-line-id="${escapeHtml(line.id)}" value="${escapeHtml(line.takes)}"></label>
+        </div>
+        <div class="line-takes" id="line-takes-${escapeHtml(line.id)}"></div>
+      </article>
+    `;
+  }).join("");
+
+  // Initialize UI state for mapping badges & action buttons on each line card
+  scene.lines.forEach((line) => {
+    updateLineMappingUI(line);
+    renderLineTakes(line.id);
+  });
+
+  // Bind click listener for render-line buttons
+  container.querySelectorAll(".render-line-btn").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const lineId = btn.dataset.lineId;
+      await handleLineRenderClick(lineId, btn);
+    });
+  });
+}
+
+async function handleLineRenderClick(lineId, btn) {
+  // 1. Run preflight checks
+  const preflight = preflightRenderLine(lineId);
+  if (!preflight.ok) {
+    setDramaStatus(`Preflight blocked: ${preflight.error}`);
+    if (preflight.field) {
+      let element = typeof preflight.field === "string" 
+        ? $(preflight.field) || document.querySelector(preflight.field) 
+        : preflight.field;
+      if (element) {
+        element.scrollIntoView({ behavior: "smooth", block: "center" });
+        element.classList.add("preflight-error-highlight");
+        setTimeout(() => element.classList.remove("preflight-error-highlight"), 2000);
+        element.focus?.();
+      }
+    }
+    return;
+  }
+
+  // 2. Call backend render-line API
+  const originalHtml = btn.innerHTML;
+  btn.innerHTML = "Rendering...";
+  btn.disabled = true;
+  setDramaStatus(`Rendering line ${lineId} with ${preflight.payload.takes} takes...`);
+
+  try {
+    const res = await api("/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify(preflight.payload)
+    });
+    
+    // Reload takes & re-render
+    const takesBody = await api("/api/takes");
+    state.takes = takesBody.takes || [];
+    renderLineTakes(lineId);
+    setDramaStatus(`Successfully rendered line ${lineId}.`);
+  } catch (error) {
+    setDramaStatus(`Render failed: ${error.message}`);
+  } finally {
+    btn.innerHTML = originalHtml;
+    btn.disabled = false;
+    // Update mapping UI
+    const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+    const line = scene?.lines?.find(l => l.id === lineId);
+    if (line) updateLineMappingUI(line);
+  }
 }
 
 function collectEditedScene() {
-  const parsedScene = state.parsedScript?.scenes?.[0];
-  if (!parsedScene) return null;
-  const lines = parsedScene.lines.map((line) => {
+  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+  if (!scene) return null;
+  const lines = scene.lines.map((line) => {
     const updated = { ...line };
     document.querySelectorAll(`[data-line-id="${CSS.escape(line.id)}"]`).forEach((input) => {
       updated[input.dataset.lineField] = input.type === "number" ? Number(input.value) : input.value;
     });
     return updated;
   });
-  return { ...parsedScene, lines };
+  return { ...scene, lines };
 }
 
 export async function parseRawScript() {
@@ -108,6 +258,8 @@ export async function parseRawScript() {
   $("parserOutput").textContent = JSON.stringify(parsed, null, 2);
   if (parsed.ok) {
     state.parsedScript = parsed.result;
+    state.speakerMappings = {}; // reset mapping
+    renderSpeakerMapping(onSpeakerMappingChanged);
     renderParsedLines(parsed.result.scenes[0]);
   }
 }
@@ -117,6 +269,10 @@ export async function saveParsedScene() {
   if (!projectId) return setDramaStatus("Create or choose a project before saving a scene.");
   const scene = collectEditedScene();
   if (!scene) return setDramaStatus("Parse a script before saving a scene.");
+  
+  // Propagate mapping updates to lines before saving
+  propagateMappingsToLines();
+  
   const saved = await api("/api/scenes", {
     method: "POST",
     body: JSON.stringify({
@@ -139,12 +295,8 @@ export async function renderFirstLine() {
   const scene = sceneId ? await api(`/api/scenes/${encodeURIComponent(sceneId)}`).then((body) => body.scene) : null;
   const line = scene?.lines?.[0];
   if (!line) return setDramaStatus("Save a scene with at least one line first.");
-  const result = await api("/api/scenes/render-line", {
-    method: "POST",
-    body: JSON.stringify({ sceneId: scene.id, lineId: line.id, takes: line.takes })
-  }).catch((error) => ({ error: error.message }));
-  setDramaStatus(result);
-  await loadTakes();
+  
+  await handleLineRenderClick(line.id, $("renderFirstLineButton"));
 }
 
 export async function refreshSelectedTakes() {

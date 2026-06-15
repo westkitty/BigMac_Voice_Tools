@@ -101,3 +101,156 @@ test("named scene render endpoint returns explicit deferred response", async () 
     assert.match(result.body.error, /deferred/i);
   });
 });
+
+test("route-level render-line validation check cases", async () => {
+  await withServer(async (baseUrl) => {
+    // 1. Missing Scene ID
+    const resNoScene = await requestJson(baseUrl, "/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify({ lineId: "L001" })
+    });
+    assert.equal(resNoScene.response.status, 400);
+    assert.equal(resNoScene.body.code, "MISSING_SCENE");
+
+    // 2. Scene Not Found
+    const resSceneNotFound = await requestJson(baseUrl, "/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify({ sceneId: "nonexistent_scene", lineId: "L001" })
+    });
+    assert.equal(resSceneNotFound.response.status, 404);
+    assert.equal(resSceneNotFound.body.code, "MISSING_SCENE");
+
+    // Create project & scene for other tests
+    const projectResult = await requestJson(baseUrl, "/api/projects", {
+      method: "POST",
+      body: JSON.stringify({ id: "test_project", name: "Test Project" })
+    });
+    assert.equal(projectResult.response.status, 201);
+
+    const sceneResult = await requestJson(baseUrl, "/api/scenes", {
+      method: "POST",
+      body: JSON.stringify({
+        id: "test_scene",
+        projectId: "test_project",
+        title: "Test Scene",
+        lines: [
+          { id: "L001", type: "dialogue", speaker: "TIGER", text: "Test text.", takes: 1 },
+          { id: "L002", type: "dialogue", speaker: "UNKNOWN", text: "Unknown text.", takes: 1 },
+          { id: "L003", type: "dialogue", speaker: "TIGER", text: "", takes: 1 }
+        ]
+      })
+    });
+    assert.equal(sceneResult.response.status, 201);
+
+    // 3. Line Not Found
+    const resLineNotFound = await requestJson(baseUrl, "/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify({ sceneId: "test_scene", lineId: "L999" })
+    });
+    assert.equal(resLineNotFound.response.status, 404);
+    assert.equal(resLineNotFound.body.code, "MISSING_LINE");
+
+    // 4. Empty Line Text
+    const resEmptyText = await requestJson(baseUrl, "/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify({ sceneId: "test_scene", lineId: "L003" })
+    });
+    assert.equal(resEmptyText.response.status, 400);
+    assert.equal(resEmptyText.body.code, "EMPTY_LINE_TEXT");
+
+    // 5. Invalid Take Count
+    const resInvalidTakes = await requestJson(baseUrl, "/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify({ sceneId: "test_scene", lineId: "L001", takes: 15 })
+    });
+    assert.equal(resInvalidTakes.response.status, 400);
+    assert.equal(resInvalidTakes.body.code, "INVALID_TAKE_COUNT");
+
+    // 6. Unknown speaker / missing character
+    const resUnknownSpeaker = await requestJson(baseUrl, "/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify({ sceneId: "test_scene", lineId: "L002" })
+    });
+    assert.equal(resUnknownSpeaker.response.status, 400);
+    assert.equal(resUnknownSpeaker.body.code, "UNKNOWN_SPEAKER");
+
+    const resMissingChar = await requestJson(baseUrl, "/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify({ sceneId: "test_scene", lineId: "L001" })
+    });
+    assert.equal(resMissingChar.response.status, 404);
+    assert.equal(resMissingChar.body.code, "MISSING_CHARACTER");
+
+    // Create character Tiger with no voice
+    const charResult = await requestJson(baseUrl, "/api/characters", {
+      method: "POST",
+      body: JSON.stringify({
+        id: "tiger_char",
+        projectId: "test_project",
+        name: "TIGER",
+        voiceId: "",
+        preferredEngine: "chatterbox"
+      })
+    });
+    assert.equal(charResult.response.status, 201);
+
+    // 7. Missing Voice
+    const resMissingVoice = await requestJson(baseUrl, "/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify({ sceneId: "test_scene", lineId: "L001" })
+    });
+    assert.equal(resMissingVoice.response.status, 400);
+    assert.equal(resMissingVoice.body.code, "MISSING_VOICE");
+
+    // Map character to a nonexistent voice
+    await requestJson(baseUrl, "/api/characters", {
+      method: "POST",
+      body: JSON.stringify({
+        id: "tiger_char",
+        projectId: "test_project",
+        name: "TIGER",
+        voiceId: "nonexistent_voice"
+      })
+    });
+
+    // 8. Voice Not Found
+    const resVoiceNotFound = await requestJson(baseUrl, "/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify({ sceneId: "test_scene", lineId: "L001" })
+    });
+    assert.equal(resVoiceNotFound.response.status, 404);
+    assert.equal(resVoiceNotFound.body.code, "VOICE_NOT_FOUND");
+
+    // Create a voice record
+    const voiceResult = await requestJson(baseUrl, "/api/voices", {
+      method: "POST",
+      body: JSON.stringify({
+        name: "TigerVoice",
+        fileName: "tiger.wav",
+        dataBase64: Buffer.from("fake").toString("base64")
+      })
+    });
+    assert.equal(voiceResult.response.status, 201);
+    const voiceId = voiceResult.body.voice.id;
+
+    // Update character with valid voice and unconfigured engine
+    await requestJson(baseUrl, "/api/characters", {
+      method: "POST",
+      body: JSON.stringify({
+        id: "tiger_char",
+        projectId: "test_project",
+        name: "TIGER",
+        voiceId: voiceId,
+        preferredEngine: "dia"
+      })
+    });
+
+    // 9. Engine Not Configured
+    const resEngineNotConfigured = await requestJson(baseUrl, "/api/scenes/render-line", {
+      method: "POST",
+      body: JSON.stringify({ sceneId: "test_scene", lineId: "L001" })
+    });
+    assert.equal(resEngineNotConfigured.response.status, 501);
+    assert.equal(resEngineNotConfigured.body.code, "ENGINE_NOT_CONFIGURED");
+  });
+});

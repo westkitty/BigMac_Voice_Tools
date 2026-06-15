@@ -187,49 +187,155 @@ async function route(req, res) {
       return;
     }
     if (url.pathname === "/api/scenes/render-line" && req.method === "POST") {
-      const body = await readBody(req);
-      const scene = await store.getScene(body.sceneId);
-      if (!scene) throw new Error("Scene was not found.");
-      const line = scene.lines.find((item) => item.id === body.lineId);
-      if (!line) throw new Error("Scene line was not found.");
-      const characters = await store.listCharacters(scene.projectId);
-      const character = characters.find((item) => item.id === (body.characterId || line.characterId) || item.name.toLowerCase() === line.speaker.toLowerCase());
-      const voiceId = body.voiceId || character?.voiceId || line.voiceId;
-      if (!voiceId) throw new Error(`Speaker ${line.speaker} has no assigned reference voice. Assign a voice before rendering this line.`);
-      const voice = await store.getVoice(voiceId);
-      if (!voice) throw new Error(`Assigned voice for speaker ${line.speaker} was not found.`);
-      const takeCount = Math.max(1, Math.min(10, Number(body.takes || line.takes || 1)));
-      const takes = [];
-      for (let index = 0; index < takeCount; index += 1) {
-        const result = await generateTake({
-          engine: body.engine || character?.preferredEngine || "chatterbox",
-          voice,
-          text: line.text,
-          model: body.model,
-          exaggeration: body.exaggeration,
-          cfgWeight: body.cfgWeight
-        });
-        await store.markVoiceUsed(voice.id);
-        takes.push(await store.saveTake({
-          projectId: scene.projectId,
-          sceneId: scene.id,
-          lineId: line.id,
-          speaker: line.speaker,
-          characterId: character?.id || line.characterId || "",
-          engine: body.engine || character?.preferredEngine || "chatterbox",
-          takeNumber: index + 1,
-          text: line.text,
-          sourceText: line.text,
-          emotion: line.emotion,
-          pace: line.pace,
-          deliveryCue: line.deliveryCue,
-          voiceId: voice.id,
-          model: body.model || result.metadata.model || "Standard",
-          settings: { exaggeration: Number(body.exaggeration || 0.5), cfgWeight: Number(body.cfgWeight || 0.5) },
-          outputPath: result.remotePath
-        }));
+      try {
+        const body = await readBody(req);
+        
+        // Validate Scene existence
+        if (!body.sceneId) {
+          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "sceneId is required.", code: "MISSING_SCENE" }) + "\n");
+          return;
+        }
+        const scene = await store.getScene(body.sceneId);
+        if (!scene) {
+          res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "Scene was not found.", code: "MISSING_SCENE" }) + "\n");
+          return;
+        }
+
+        // Validate Project existence
+        const project = await store.getProject(scene.projectId);
+        if (!project) {
+          res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "Project was not found.", code: "MISSING_PROJECT" }) + "\n");
+          return;
+        }
+
+        // Validate Line existence
+        if (!body.lineId) {
+          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "lineId is required.", code: "MISSING_LINE" }) + "\n");
+          return;
+        }
+        const line = scene.lines.find((item) => item.id === body.lineId);
+        if (!line) {
+          res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "Scene line was not found.", code: "MISSING_LINE" }) + "\n");
+          return;
+        }
+
+        // Validate Speaker existence
+        if (!line.speaker) {
+          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "Line speaker is required.", code: "MISSING_SPEAKER" }) + "\n");
+          return;
+        }
+
+        // Validate Line Text is non-empty
+        const textToRender = typeof body.text === "string" ? body.text : line.text;
+        if (!textToRender || !textToRender.trim()) {
+          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "Line text is empty.", code: "EMPTY_LINE_TEXT" }) + "\n");
+          return;
+        }
+
+        // Validate Take Count
+        const takeCountParam = body.takes || line.takes || 1;
+        const takeCount = Number(takeCountParam);
+        if (isNaN(takeCount) || takeCount < 1 || takeCount > 10 || !Number.isInteger(takeCount)) {
+          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "Take count must be between 1 and 10.", code: "INVALID_TAKE_COUNT" }) + "\n");
+          return;
+        }
+
+        // Resolve Character
+        const characters = await store.listCharacters(scene.projectId);
+        const character = characters.find((item) => item.id === (body.characterId || line.characterId) || item.name.toLowerCase() === line.speaker.toLowerCase());
+        
+        if (!character) {
+          if (line.speaker.toUpperCase() === "UNKNOWN") {
+            res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ ok: false, error: "Speaker UNKNOWN is not mapped to a character. Map it before rendering.", code: "UNKNOWN_SPEAKER" }) + "\n");
+            return;
+          }
+          res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: `Speaker ${line.speaker} is not mapped to a character.`, code: "MISSING_CHARACTER" }) + "\n");
+          return;
+        }
+
+        // Resolve Voice
+        const voiceId = body.voiceId || character.voiceId || line.voiceId;
+        if (!voiceId) {
+          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: `Character ${character.name} has no assigned reference voice.`, code: "MISSING_VOICE" }) + "\n");
+          return;
+        }
+        const voice = await store.getVoice(voiceId);
+        if (!voice) {
+          res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: `Assigned voice for speaker ${line.speaker} was not found.`, code: "VOICE_NOT_FOUND" }) + "\n");
+          return;
+        }
+
+        // Validate Engine is configured
+        const engine = body.engine || character.preferredEngine || "chatterbox";
+        const engineMeta = listEngines().find(e => e.id === engine);
+        if (!engineMeta || !engineMeta.configured) {
+          res.writeHead(501, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: `Engine "${engine}" is not configured yet.`, code: "ENGINE_NOT_CONFIGURED" }) + "\n");
+          return;
+        }
+
+        // Perform Generation
+        const takes = [];
+        for (let index = 0; index < takeCount; index += 1) {
+          let result;
+          try {
+            result = await generateTake({
+              engine,
+              voice,
+              text: textToRender,
+              model: body.model,
+              exaggeration: body.exaggeration,
+              cfgWeight: body.cfgWeight
+            });
+          } catch (genError) {
+            res.writeHead(500, { "content-type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ ok: false, error: `Generation failed: ${genError.message || genError}`, code: "GENERATION_FAILED" }) + "\n");
+            return;
+          }
+
+          // Validate output path remains allowlisted BEFORE saving or returning
+          if (!isAllowedAudioPath(result.remotePath, remoteConfig)) {
+            res.writeHead(403, { "content-type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ ok: false, error: "Audio path is outside the Chatterbox output directory.", code: "OUTPUT_PATH_NOT_ALLOWED" }) + "\n");
+            return;
+          }
+
+          await store.markVoiceUsed(voice.id);
+          takes.push(await store.saveTake({
+            projectId: scene.projectId,
+            sceneId: scene.id,
+            lineId: line.id,
+            speaker: line.speaker,
+            characterId: character.id || "",
+            engine,
+            takeNumber: index + 1,
+            text: textToRender,
+            sourceText: textToRender,
+            emotion: line.emotion,
+            pace: line.pace,
+            deliveryCue: line.deliveryCue,
+            voiceId: voice.id,
+            model: body.model || result.metadata.model || "Standard",
+            settings: { exaggeration: Number(body.exaggeration || 0.5), cfgWeight: Number(body.cfgWeight || 0.5) },
+            outputPath: result.remotePath
+          }));
+        }
+        sendJson(res, 201, { takes });
+      } catch (err) {
+        sendError(res, err, 500);
       }
-      sendJson(res, 201, { takes });
       return;
     }
     if (url.pathname === "/api/scenes/render" && req.method === "POST") {
