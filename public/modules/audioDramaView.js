@@ -1,11 +1,12 @@
 import { api } from "./api.js";
-import { $, escapeHtml, setDramaStatus, state } from "./state.js";
+import { $, escapeHtml, pushUiError, setDramaStatus, state } from "./state.js";
 import { loadTakes } from "./voiceLabView.js";
 import { renderSpeakerMapping, getSpeakerStatus, propagateMappingsToLines } from "./audioDrama/speakerMapping.js";
 import { preflightRenderLine } from "./audioDrama/renderPreflight.js";
 import { renderLineTakes } from "./audioDrama/takeReview.js";
 import { handleRenderReadyLines } from "./audioDrama/sceneRender.js";
 import { resetPreviewAssembly, loadRecentPreviews } from "./audioDrama/previewAssembly.js";
+import { renderWorkflowStatus } from "./dashboardView.js";
 
 export function renderCharacterVoiceOptions() {
   const select = $("characterVoice");
@@ -42,6 +43,7 @@ export async function loadDrama() {
       state.selectedTakesMap = selectedBody.selectedTakes || {};
     } catch (err) {
       console.error("Failed to load selected takes", err);
+      pushUiError("Selected takes", err);
       state.selectedTakesMap = {};
     }
   } else {
@@ -49,6 +51,7 @@ export async function loadDrama() {
   }
 
   renderDrama();
+  renderWorkflowStatus();
 }
 
 export function renderDrama() {
@@ -80,7 +83,8 @@ export function renderDrama() {
   const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
   renderParsedLines(scene);
   resetPreviewAssembly();
-  loadRecentPreviews();
+  loadRecentPreviews().catch((error) => pushUiError("Recent previews", error));
+  renderWorkflowStatus();
 }
 
 // When speaker mapping changes, we re-propagate and re-render
@@ -130,6 +134,7 @@ export async function createProject(event) {
   $("projectName").value = "";
   await loadDrama();
   setDramaStatus(`Created project ${project.name}.`);
+  renderWorkflowStatus();
 }
 
 export async function createCharacter(event) {
@@ -170,6 +175,7 @@ export async function createCharacter(event) {
 
   await loadDrama();
   setDramaStatus(`Created character ${character.name}.`);
+  renderWorkflowStatus();
 }
 
 function getEffectiveLineSettings(line) {
@@ -402,6 +408,7 @@ async function handleLineRenderClick(lineId, btn) {
     state.takes = takesBody.takes || [];
     renderLineTakes(lineId);
     setDramaStatus(`Successfully rendered line ${lineId}.`);
+    renderWorkflowStatus();
   } catch (error) {
     setDramaStatus(`Render failed: ${error.message}`);
   } finally {
@@ -493,6 +500,7 @@ export async function saveParsedScene() {
   state.currentSceneId = saved.scene.id;
   await loadDrama();
   setDramaStatus(saved);
+  renderWorkflowStatus();
 }
 
 export async function renderFirstLine() {
@@ -508,7 +516,10 @@ export async function refreshSelectedTakes() {
   const projectId = $("projectSelect").value;
   const sceneId = state.currentSceneId || state.scenes[0]?.id;
   if (!projectId || !sceneId) return setDramaStatus("Choose a project and save a scene first.");
-  setDramaStatus(await api(`/api/scenes/selected?projectId=${encodeURIComponent(projectId)}&sceneId=${encodeURIComponent(sceneId)}`));
+  const selected = await api(`/api/scenes/selected?projectId=${encodeURIComponent(projectId)}&sceneId=${encodeURIComponent(sceneId)}`);
+  state.selectedTakesMap = selected.selectedTakes || {};
+  setDramaStatus(selected);
+  renderWorkflowStatus();
 }
 
 export { handleRenderReadyLines };

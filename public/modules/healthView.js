@@ -1,5 +1,6 @@
 import { api } from "./api.js";
 import { $, escapeHtml, state } from "./state.js";
+import { renderGlobalStatus } from "./dashboardView.js";
 
 function pill(label, item) {
   const ok = item?.ok;
@@ -26,17 +27,23 @@ export async function loadHealth() {
     const parserQuery = state.parserModel && state.parserModel !== "auto" ? `?model=${encodeURIComponent(state.parserModel)}` : "";
     const parser = await api(`/api/script/parser-health${parserQuery}`).catch((error) => ({ ok: false, detail: error.message, models: [] }));
     renderParserModelOptions(parser);
-    $("statusRail").innerHTML = [
-      pill("Big Mac", health.bigMac),
-      pill("Server", health.server),
-      pill("Tunnel", health.tunnel),
-      pill("Parser", parser),
-      pill("Disk", health.disk),
-      pill("Raw GUI", health.rawGui),
-      pill("Wrapper", health.wrapper)
-    ].join("");
-    $("diagnosticsText").textContent = JSON.stringify({ health, parser }, null, 2);
-    $("healthScreenDetails").textContent = JSON.stringify({ health, parser }, null, 2);
+    renderGlobalStatus({ health, parser });
+    const statusRail = $("statusRail");
+    if (statusRail) {
+      statusRail.innerHTML = [
+        pill("Big Mac", health.bigMac),
+        pill("Server", health.server),
+        pill("Tunnel", health.tunnel),
+        pill("Parser", parser),
+        pill("Disk", health.disk),
+        pill("Raw GUI", health.rawGui),
+        pill("Wrapper", health.wrapper)
+      ].join("");
+    }
+    const diagnosticsText = $("diagnosticsText");
+    if (diagnosticsText) diagnosticsText.textContent = JSON.stringify({ health, parser }, null, 2);
+    const healthScreenDetails = $("healthScreenDetails");
+    if (healthScreenDetails) healthScreenDetails.textContent = JSON.stringify({ health, parser }, null, 2);
     $("parserTunnelCopy").textContent = parser.copy || "The parser uses the MacBook-side tunnel to BigMac Ollama. This is not MacBook-local inference.";
     const parserModelStatus = $("parserModelStatus");
     if (parserModelStatus) {
@@ -45,9 +52,13 @@ export async function loadHealth() {
         : `No usable parser model selected. Available models: ${(parser.models || []).length}.`;
     }
   } catch (error) {
-    $("statusRail").innerHTML = `<button class="status-pill warn" type="button">Health: Failed</button>`;
-    $("diagnosticsText").textContent = error.message;
-    $("healthScreenDetails").textContent = error.message;
+    renderGlobalStatus();
+    const statusRail = $("statusRail");
+    if (statusRail) statusRail.innerHTML = `<button class="status-pill warn" type="button">Health: Failed</button>`;
+    const diagnosticsText = $("diagnosticsText");
+    if (diagnosticsText) diagnosticsText.textContent = error.message;
+    const healthScreenDetails = $("healthScreenDetails");
+    if (healthScreenDetails) healthScreenDetails.textContent = error.message;
   }
 }
 

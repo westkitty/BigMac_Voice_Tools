@@ -1,5 +1,6 @@
-import { $, escapeHtml, state, setDramaStatus } from "../state.js";
+import { $, escapeHtml, state, setDramaStatus, pushUiError } from "../state.js";
 import { api } from "../api.js";
+import { renderWorkflowStatus } from "../dashboardView.js";
 
 let activePreviewRemotePath = "";
 
@@ -164,6 +165,8 @@ export async function handleBuildScenePreview() {
     if (openLink) openLink.href = res.preview.audioUrl;
     if (downloadLink) downloadLink.href = res.preview.audioUrl;
     activePreviewRemotePath = res.preview.remotePath;
+    state.latestPreview = res.preview;
+    renderWorkflowStatus();
 
     // Refresh the recent previews list
     await loadRecentPreviews();
@@ -228,6 +231,7 @@ export function resetPreviewAssembly() {
   if (openLink) openLink.href = "#";
   if (downloadLink) downloadLink.href = "#";
   activePreviewRemotePath = "";
+  renderWorkflowStatus();
 }
 
 /**
@@ -248,12 +252,16 @@ export async function loadRecentPreviews() {
     const res = await api(`/api/scenes/previews?projectId=${encodeURIComponent(projectId)}&sceneId=${encodeURIComponent(sceneId)}`);
     const previews = res.previews || [];
     if (previews.length === 0) {
-      listContainer.innerHTML = `<div style="font-size: 0.75rem; color: var(--muted); font-style: italic;">No previews generated yet.</div>`;
+      state.latestPreview = null;
+      renderWorkflowStatus();
+      listContainer.innerHTML = `<div class="empty-state compact-empty"><p>No previews generated yet. Assemble a scene preview after choosing takes.</p></div>`;
       return;
     }
 
     // Sort descending by createdAt
     previews.sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt));
+    state.latestPreview = previews[0];
+    renderWorkflowStatus();
 
     listContainer.innerHTML = previews.map(p => {
       const dateStr = new Date(p.createdAt).toLocaleString(undefined, {
@@ -331,7 +339,9 @@ export async function loadRecentPreviews() {
 
   } catch (err) {
     console.error("Failed to load recent previews", err);
-    listContainer.innerHTML = `<div style="font-size: 0.75rem; color: var(--red);">Error loading previews: ${escapeHtml(err.message)}</div>`;
+    pushUiError("Recent previews", err);
+    renderWorkflowStatus();
+    listContainer.innerHTML = `<div class="empty-state compact-empty error-empty"><p>Recent previews could not load: ${escapeHtml(err.message)}</p></div>`;
   }
 }
 

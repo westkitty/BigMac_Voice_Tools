@@ -23,7 +23,13 @@ export const state = {
   recorder: null,
   recordedBlob: null,
   recordStream: null,
-  selectedTakeIds: new Set()
+  selectedTakeIds: new Set(),
+  activeView: "dashboardView",
+  activeDramaStep: "script",
+  uiErrors: [],
+  lastHealth: null,
+  lastParser: null,
+  lastQueueSummary: null
 };
 
 export const helpContent = {
@@ -75,6 +81,11 @@ export function escapeHtml(value) {
     .replaceAll("<", "&lt;")
     .replaceAll(">", "&gt;")
     .replaceAll('"', "&quot;");
+}
+
+export function pushUiError(source, error) {
+  const message = error?.message || String(error || "Unknown error");
+  state.uiErrors = [{ source, message, createdAt: new Date().toISOString() }, ...state.uiErrors].slice(0, 10);
 }
 
 export function setMessage(text, type = "") {

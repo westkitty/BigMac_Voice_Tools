@@ -1,8 +1,9 @@
 import { api } from "./modules/api.js";
-import { $, setMessage, state } from "./modules/state.js";
+import { $, pushUiError, setMessage, state } from "./modules/state.js";
 import { loadHealth, loadLogs } from "./modules/healthView.js";
+import { loadDashboard, renderWorkflowStatus, setDramaStep } from "./modules/dashboardView.js";
 import { loadDrama, createCharacter, createProject, parseRawScript, refreshSelectedTakes, renderFirstLine, saveParsedScene, handleRenderReadyLines } from "./modules/audioDramaView.js";
-import { openHelp, openStudioWindow, setView } from "./modules/navigation.js";
+import { copyText, openHelp, openStudioWindow, setView } from "./modules/navigation.js";
 import { initPreviewAssembly } from "./modules/audioDrama/previewAssembly.js";
 import {
   formatDocumentFile,
@@ -25,9 +26,28 @@ import {
 async function handleDocumentClick(event) {
   const viewTarget = event.target.closest("[data-view-target]");
   if (viewTarget) {
-    setView(viewTarget.dataset.viewTarget);
-    if (viewTarget.dataset.viewTarget === "audioDramaView") await loadDrama();
-    if (viewTarget.dataset.viewTarget === "healthView") await loadHealth();
+    const target = viewTarget.dataset.viewTarget;
+    setView(target);
+    if (target === "dashboardView") await loadDashboard();
+    if (target === "audioDramaView") await loadDrama();
+    if (target === "voiceLabView" || target === "takesView") await loadTakes();
+        renderWorkflowStatus();
+    if (target === "voicesView" || target === "voiceLabView") await loadVoices();
+    if (target === "healthView") {
+      await loadHealth();
+      await loadDashboard();
+    }
+  }
+
+  const copyCommand = event.target.closest("[data-copy-command]");
+  if (copyCommand) {
+    copyText(copyCommand.dataset.copyCommand, "Command copied.");
+    setMessage("Command copied.", "ok");
+  }
+
+  const dramaStep = event.target.closest("[data-drama-step]");
+  if (dramaStep) {
+    setDramaStep(dramaStep.dataset.dramaStep);
   }
 
   const selectVoice = event.target.closest("[data-select-voice]");
@@ -39,7 +59,7 @@ async function handleDocumentClick(event) {
 
   const copyPath = event.target.closest("[data-copy-path]");
   if (copyPath) {
-    await navigator.clipboard.writeText(copyPath.dataset.copyPath);
+    copyText(copyPath.dataset.copyPath, "Output path copied.");
     setMessage("Output path copied.", "ok");
   }
 
@@ -53,6 +73,7 @@ async function handleDocumentClick(event) {
     state.selectedTakeIds.delete(deleteTake.dataset.deleteTake);
     setMessage("Output deleted.", "ok");
     await loadTakes();
+        renderWorkflowStatus();
   }
 
   // Handle take checkbox selection in Voice Lab / Review Screens
@@ -99,6 +120,7 @@ async function handleDocumentClick(event) {
         }
         setMessage(statusMsg, "ok");
         await loadTakes();
+        renderWorkflowStatus();
       } catch (err) {
         setMessage(err.message || String(err), "error");
       }
@@ -125,6 +147,7 @@ async function handleDocumentClick(event) {
         }
         setMessage(statusMsg, "ok");
         await loadTakes();
+        renderWorkflowStatus();
       } catch (err) {
         setMessage(err.message || String(err), "error");
       }
@@ -138,50 +161,59 @@ async function handleDocumentClick(event) {
   if (help) openHelp(help.dataset.help);
 }
 
+function bind(id, eventName, handler) {
+  const element = $(id);
+  if (!element) {
+    pushUiError("Binding", new Error(`Missing #${id}`));
+    return;
+  }
+  element.addEventListener(eventName, handler);
+}
+
 function bindEvents() {
   document.addEventListener("click", handleDocumentClick);
-  $("voiceForm").addEventListener("submit", saveVoice);
-  $("generateButton").addEventListener("click", generate);
-  $("conversationButton").addEventListener("click", generateConversation);
-  $("refreshButton").addEventListener("click", loadHealth);
-  $("logsButton").addEventListener("click", loadLogs);
-  $("formatDocumentButton").addEventListener("click", formatDocumentFile);
-  $("documentFile").addEventListener("change", formatDocumentFile);
-  $("speakerCount").addEventListener("change", () => {
+  bind("voiceForm", "submit", saveVoice);
+  bind("generateButton", "click", generate);
+  bind("conversationButton", "click", generateConversation);
+  bind("refreshButton", "click", loadHealth);
+  bind("logsButton", "click", loadLogs);
+  bind("formatDocumentButton", "click", formatDocumentFile);
+  bind("documentFile", "change", formatDocumentFile);
+  bind("speakerCount", "change", () => {
     state.speakerCount = Number($("speakerCount").value);
     renderCharacterSlots();
   });
-  $("helpClose").addEventListener("click", () => $("helpModal").close());
-  $("helpModal").addEventListener("click", (event) => {
+  bind("helpClose", "click", () => $("helpModal")?.close());
+  bind("helpModal", "click", (event) => {
     if (event.target === $("helpModal")) $("helpModal").close();
   });
-  $("openRawButton").addEventListener("click", () => window.open("http://127.0.0.1:7860", "_blank"));
+  bind("openRawButton", "click", () => window.open("http://127.0.0.1:7860", "_blank"));
   $("openStudioWindowButton")?.addEventListener("click", () => {
     if (!openStudioWindow()) setMessage("Browser blocked the studio window. Allow popups for this local app or use /wrapper.html.", "error");
   });
-  $("revealOutputsButton").addEventListener("click", async () => {
+  bind("revealOutputsButton", "click", async () => {
     await api("/api/reveal-output-folder", { method: "POST", body: "{}" });
     setMessage("Opened the configured BigMac Chatterbox output folder.", "ok");
   });
-  $("uploadTab").addEventListener("click", () => setCaptureMode("upload"));
-  $("recordTab").addEventListener("click", () => setCaptureMode("record"));
-  $("recordStart").addEventListener("click", startRecording);
-  $("recordStop").addEventListener("click", stopRecording);
-  $("projectForm").addEventListener("submit", createProject);
-  $("characterForm").addEventListener("submit", createCharacter);
-  $("projectSelect").addEventListener("change", loadDrama);
-  $("refreshDramaButton").addEventListener("click", loadDrama);
+  bind("uploadTab", "click", () => setCaptureMode("upload"));
+  bind("recordTab", "click", () => setCaptureMode("record"));
+  bind("recordStart", "click", startRecording);
+  bind("recordStop", "click", stopRecording);
+  bind("projectForm", "submit", createProject);
+  bind("characterForm", "submit", createCharacter);
+  bind("projectSelect", "change", loadDrama);
+  bind("refreshDramaButton", "click", loadDrama);
   $("parserModelSelect")?.addEventListener("change", async (event) => {
     state.parserModel = event.target.value || "auto";
     await loadHealth();
   });
-  $("parseScriptButton").addEventListener("click", parseRawScript);
-  $("saveSceneButton").addEventListener("click", saveParsedScene);
-  $("renderReadyLinesButton").addEventListener("click", handleRenderReadyLines);
-  $("renderFirstLineButton").addEventListener("click", renderFirstLine);
-  $("refreshSelectedButton").addEventListener("click", refreshSelectedTakes);
-  $("healthScreenRefresh").addEventListener("click", loadHealth);
-  $("previewToggle").addEventListener("click", () => {
+  bind("parseScriptButton", "click", parseRawScript);
+  bind("saveSceneButton", "click", saveParsedScene);
+  bind("renderReadyLinesButton", "click", handleRenderReadyLines);
+  bind("renderFirstLineButton", "click", renderFirstLine);
+  bind("refreshSelectedButton", "click", refreshSelectedTakes);
+  bind("healthScreenRefresh", "click", loadHealth);
+  bind("previewToggle", "click", () => {
     state.showPreview = !state.showPreview;
     $("previewToggle").classList.toggle("active", state.showPreview);
     $("scriptPreview").classList.toggle("hidden", !state.showPreview);
@@ -189,26 +221,37 @@ function bindEvents() {
   });
 
   let previewTimer = null;
-  $("scriptText").addEventListener("input", () => {
+  bind("scriptText", "input", () => {
     clearTimeout(previewTimer);
     previewTimer = setTimeout(renderScriptPreview, 180);
   });
 
-  $("simpleMode").addEventListener("click", () => {
+  bind("simpleMode", "click", () => {
     state.advanced = false;
     $("advancedControls").classList.add("hidden");
     $("simpleMode").classList.add("active");
     $("advancedMode").classList.remove("active");
   });
-  $("advancedMode").addEventListener("click", () => {
+  bind("advancedMode", "click", () => {
     state.advanced = true;
     $("advancedControls").classList.remove("hidden");
     $("advancedMode").classList.add("active");
     $("simpleMode").classList.remove("active");
   });
+  document.addEventListener("bvt:view-change", async (event) => {
+    if (event.detail?.viewId === "dashboardView") await loadDashboard().catch((error) => pushUiError("Dashboard", error));
+    if (event.detail?.viewId === "healthView") await loadHealth().catch((error) => pushUiError("Health", error));
+  });
   initPreviewAssembly();
+  setDramaStep(state.activeDramaStep);
 }
 
 bindEvents();
-await Promise.all([loadHealth(), loadVoices(), loadTakes()]);
-await loadDrama().catch(() => {});
+await Promise.all([
+  loadHealth().catch((error) => pushUiError("Health", error)),
+  loadVoices().catch((error) => pushUiError("Voices", error)),
+  loadTakes().catch((error) => pushUiError("Takes", error))
+]);
+await loadDrama().catch((error) => pushUiError("Drama", error));
+await loadDashboard().catch((error) => pushUiError("Dashboard", error));
+renderWorkflowStatus();

@@ -8,27 +8,74 @@
     <link rel="stylesheet" href="/styles.css">
   </head>
   <body>
-    <div class="app-shell">
-      <header class="topbar glow-panel">
-        <div>
-          <p class="eyebrow">BigMac VoiceTools</p>
+    <a href="#dashboardView" class="skip-link">Skip to workspace</a>
+    <div class="app-shell studio-shell">
+      <header class="topbar studio-topbar glow-panel">
+        <div class="brand-lockup">
+          <p class="eyebrow">Local production cockpit</p>
           <h1>BigMac VoiceTools</h1>
+          <p class="meta-line">MacBook control surface to BigMac inference backend. Canonical URL: <strong>127.0.0.1:7870</strong>.</p>
         </div>
-        <button class="reactive-button" id="openStudioWindowButton" data-tip="Open the studio in a dedicated browser window" type="button">Open Studio Window</button>
+        <div id="globalStatusSummary" class="global-status-summary" aria-live="polite">
+          <span class="studio-metric warn"><strong>Checking</strong><small>Stack health</small></span>
+        </div>
+        <button class="reactive-button" id="openStudioWindowButton" data-tip="Open the studio in a dedicated browser window" type="button">Open Window</button>
         <a class="reactive-button help-button" href="/wrapper.html" target="_blank" rel="noopener">Wrapper</a>
         <button class="reactive-button help-button" data-help="global" data-tip="Open the studio help guide" type="button">Help</button>
-        <div id="statusRail" class="status-rail" aria-live="polite"></div>
       </header>
+      <div id="degradedStackBanner" class="degraded-stack-banner hidden" role="status" aria-live="polite"></div>
 
-      <nav class="mode-nav glow-panel" aria-label="BigMac VoiceTools modes">
-        <button class="chip active" data-view-target="voiceLabView" type="button">Voice Lab</button>
-        <button class="chip" data-view-target="audioDramaView" type="button">Audio Drama</button>
-        <button class="chip" data-view-target="takesView" type="button">Takes</button>
-        <button class="chip" data-view-target="voicesView" type="button">Voices</button>
-        <button class="chip" data-view-target="healthView" type="button">Health</button>
-      </nav>
+      <div class="studio-layout">
+        <aside class="studio-sidebar glow-panel" aria-label="BigMac VoiceTools navigation">
+          <div class="sidebar-section">
+            <p class="eyebrow">Navigate</p>
+            <button class="nav-item active" data-view-target="dashboardView" type="button"><span>Command Center</span><small>Health + next action</small></button>
+            <button class="nav-item" data-view-target="voiceLabView" type="button"><span>Voice Library</span><small>References + samples</small></button>
+            <button class="nav-item" data-view-target="audioDramaView" type="button"><span>Drama Studio</span><small>Script to export</small></button>
+            <button class="nav-item" data-view-target="takesView" type="button"><span>Render Queue / Takes</span><small>Generated audio cleanup</small></button>
+            <button class="nav-item" data-view-target="voicesView" type="button"><span>Voice Index</span><small>All saved voices</small></button>
+            <button class="nav-item" data-view-target="healthView" type="button"><span>System / Logs</span><small>Ports + diagnostics</small></button>
+          </div>
+          <div class="sidebar-doctrine">
+            <p class="eyebrow">Launch doctrine</p>
+            <p>Use the Dock icon or <code>/Users/andrew/bin/bigmac-voicetools-launch</code>.</p>
+            <p><strong>Normal:</strong> 7870 + 7860 + 11435.</p>
+            <p><strong>Avoid:</strong> 7873 except debugging.</p>
+          </div>
+        </aside>
 
-      <main id="voiceLabView" class="console-grid app-view active-view">
+        <div class="studio-workspace">
+          <section id="dashboardView" class="app-view dashboard-view active-view" aria-labelledby="dashboardTitle">
+            <div class="dashboard-hero glow-panel">
+              <div>
+                <p class="eyebrow">Command Center</p>
+                <h2 id="dashboardTitle">Start here, then work in the Studio.</h2>
+                <p class="meta-line">This dashboard keeps the fragile local stack visible: wrapper 7870, Chatterbox tunnel 7860, Ollama tunnel 11435, and BigMac SSH.</p>
+              </div>
+              <div class="dashboard-actions">
+                <button class="reactive-button primary" data-view-target="audioDramaView" type="button">Open Drama Studio</button>
+                <button class="reactive-button" data-view-target="voiceLabView" type="button">Manage Voices</button>
+                <button class="reactive-button" data-view-target="healthView" type="button">System / Logs</button>
+              </div>
+            </div>
+            <div id="dashboardStatusCards" class="status-card-grid" aria-live="polite"></div>
+            <div class="dashboard-grid">
+              <article id="dashboardContinueCard" class="glass-card dashboard-card glow-panel"></article>
+              <article class="glass-card dashboard-card glow-panel">
+                <p class="eyebrow">Recent activity</p>
+                <h3>Latest generated takes</h3>
+                <div id="dashboardActivityList" class="activity-list"></div>
+              </article>
+              <article class="glass-card dashboard-card glow-panel">
+                <p class="eyebrow">Primary workflow</p>
+                <h3>Drama Studio pipeline</h3>
+                <ol class="pipeline-list">
+                  <li>Script</li><li>Characters</li><li>Bind</li><li>Render</li><li>Review</li><li>Preview</li><li>Export</li>
+                </ol>
+              </article>
+            </div>
+          </section>
+      <main id="voiceLabView" class="console-grid app-view hidden">
         <section class="script-panel glass-card glow-panel">
           <div class="section-head">
             <div>
@@ -191,15 +238,26 @@
       </main>
 
       <section id="audioDramaView" class="app-view glass-card glow-panel hidden" aria-labelledby="audioDramaTitle">
-        <div class="section-head">
+        <div class="studio-section-header">
           <div>
-            <p class="eyebrow">Audio Drama</p>
-            <h2 id="audioDramaTitle">Production workflow</h2>
+            <p class="eyebrow">Drama Studio</p>
+            <h2 id="audioDramaTitle">Script to bind to render to review to preview to export</h2>
+            <p class="meta-line">A guided pipeline for multi-character audio drama production. Existing endpoints and data models remain unchanged.</p>
+            <div id="workflowStepSummary" class="workflow-step-summary" aria-live="polite"></div>
           </div>
-          <button class="reactive-button" id="refreshDramaButton" type="button">Refresh</button>
+          <button class="reactive-button" id="refreshDramaButton" type="button">Refresh Drama</button>
         </div>
+        <nav class="workflow-stepper" aria-label="Audio drama workflow">
+          <button class="active" data-drama-step="script" type="button">1 Script</button>
+          <button data-drama-step="characters" type="button">2 Characters</button>
+          <button data-drama-step="bind" type="button">3 Bind</button>
+          <button data-drama-step="render" type="button">4 Render</button>
+          <button data-drama-step="review" type="button">5 Review</button>
+          <button data-drama-step="preview" type="button">6 Preview</button>
+          <button data-drama-step="export" type="button">7 Export</button>
+        </nav>
         <div class="drama-grid">
-          <aside class="drama-rail">
+          <aside class="drama-rail" data-drama-step-panel="characters">
             <form id="projectForm" class="stacked-form">
               <h3>Project</h3>
               <label><span>Name</span><input id="projectName" placeholder="Orbital Tomb"></label>
@@ -227,7 +285,7 @@
             <div id="dramaCharacters" class="compact-list"></div>
           </aside>
           <div class="drama-workspace">
-            <section class="workflow-panel">
+            <section class="workflow-panel active-step-panel" data-drama-step-panel="script">
               <div class="step-label">Step 1</div>
               <h3>Paste Raw Script</h3>
               <p class="meta-line">Raw script is preserved separately from parsed scene data.</p>
@@ -235,7 +293,7 @@
 NARRATOR: The corridor lights failed one at a time.
 UNKNOWN: Is anyone still there?</textarea>
             </section>
-            <section class="workflow-panel">
+            <section class="workflow-panel" data-drama-step-panel="script">
               <div class="step-label">Step 2</div>
               <h3>Parse with BigMac Ollama</h3>
               <p class="meta-line" id="parserTunnelCopy">The parser uses the MacBook-side tunnel to BigMac Ollama. This is not MacBook-local inference.</p>
@@ -250,18 +308,18 @@ UNKNOWN: Is anyone still there?</textarea>
               </div>
               <pre id="parserOutput">Parser output will appear here.</pre>
             </section>
-            <section class="workflow-panel">
+            <section class="workflow-panel" data-drama-step-panel="bind">
               <div class="step-label">Step 3</div>
               <h3>Speaker Voice Binding</h3>
               <p class="meta-line">Assign project characters and reference voices to each unique speaker.</p>
               <div id="speakerMappingList" class="speaker-mapping empty-state">No parsed lines yet.</div>
             </section>
-            <section class="workflow-panel">
+            <section class="workflow-panel" data-drama-step-panel="render">
               <div class="step-label">Step 4</div>
               <h3>Review/Edit Structured Lines</h3>
               <div id="sceneLineEditor" class="line-editor empty-state">No parsed lines yet.</div>
             </section>
-            <section class="workflow-panel">
+            <section class="workflow-panel" data-drama-step-panel="review">
               <div class="step-label">Step 5</div>
               <h3>Render and Select Takes</h3>
               <p class="meta-line">Render lines sequentially using their mapped reference voices. Unmapped speakers (e.g. UNKNOWN) are skipped.</p>
@@ -278,7 +336,7 @@ UNKNOWN: Is anyone still there?</textarea>
               </div>
               <div id="sceneRenderSummary" class="scene-render-summary hidden" style="margin-top: 12px;"></div>
               
-              <div id="previewAssemblyPanel" class="preview-assembly-panel" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
+              <div id="previewAssemblyPanel" class="preview-assembly-panel" data-drama-step-panel="preview" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
                 <h4 style="margin: 0 0 6px 0; font-size: 0.95rem; color: var(--foreground);">Scene Preview Assembly</h4>
                 <p class="meta-line" style="margin-bottom: 12px; font-size: 0.72rem; color: var(--muted); line-height: 1.4;">
                   Preview uses selected takes only; it does not render missing lines. Fades are applied to each selected take before preview assembly. Line pause overrides beat the default gap. Preview assembly runs locally through BigMac; no cloud upload.
@@ -351,16 +409,51 @@ UNKNOWN: Is anyone still there?</textarea>
       </section>
 
       <section id="healthView" class="app-view glass-card glow-panel hidden" aria-labelledby="healthScreenTitle">
-        <div class="section-head">
+        <div class="studio-section-header">
           <div>
-            <p class="eyebrow">Health</p>
-            <h2 id="healthScreenTitle">Subsystem checks</h2>
+            <p class="eyebrow">System / Logs</p>
+            <h2 id="healthScreenTitle">Launcher, tunnel, and subsystem checks</h2>
+            <p class="meta-line">Normal production use is the Dock launcher or canonical script. Do not use port 7873 unless debugging.</p>
           </div>
           <button class="reactive-button" id="healthScreenRefresh" type="button">Refresh Health</button>
+        </div>
+        <div id="systemDoctrineCards" class="status-card-grid compact-system-grid"></div>
+        <div class="system-command-panel">
+          <p class="eyebrow">Recovery</p>
+          <code>/Users/andrew/bin/bigmac-voicetools-launch</code>
+          <button class="reactive-button" data-copy-command="/Users/andrew/bin/bigmac-voicetools-launch" type="button">Copy relaunch command</button>
         </div>
         <p class="meta-line warning">Health checks do not prove generation works. A real generation test is required.</p>
         <p class="meta-line">The parser uses the MacBook-side tunnel to BigMac Ollama. This is not MacBook-local inference.</p>
         <pre id="healthScreenDetails">Checking systems...</pre>
+      </section>
+        </div>
+
+        <aside class="studio-inspector glow-panel" aria-label="Context inspector">
+          <p class="eyebrow">Inspector</p>
+          <h2>Current context</h2>
+          <p class="meta-line">Use this panel as the future home for selected project, scene, line, take, and preview details. The current pass keeps working controls in place while establishing the rework shell.</p>
+          <div id="inspectorContent" class="inspector-stack inspector-card">
+            <div><strong>Canonical app</strong><span>127.0.0.1:7870</span></div>
+            <div><strong>Chatterbox tunnel</strong><span>127.0.0.1:7860</span></div>
+            <div><strong>Ollama tunnel</strong><span>127.0.0.1:11435</span></div>
+          </div>
+          <div class="inspector-card danger-zone-note">
+            <strong>Non-negotiables</strong>
+            <p>No cloud. No telemetry. Strict audio allowlist. BigMac remains the backend.</p>
+          </div>
+        </aside>
+      </div>
+
+      <section class="activity-drawer glow-panel" aria-label="Activity and status drawer">
+        <div>
+          <p class="eyebrow">Activity Drawer</p>
+          <p class="meta-line" id="activityStatusText">Render queue, destructive action feedback, and logs should consolidate here in the next UI pass.</p>
+        </div>
+        <div class="activity-drawer-actions">
+          <button class="reactive-button" data-view-target="takesView" type="button">Review Takes</button>
+          <button class="reactive-button" data-view-target="healthView" type="button">Open System Logs</button>
+        </div>
       </section>
     </div>
 
