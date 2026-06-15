@@ -52,13 +52,38 @@ function voiceCardsHtml() {
 export function renderTakes() {
   const empty = `<p>No takes yet. Save or record a voice, generate, then the output lands here.</p>`;
   if (!state.takes.length) {
+    state.selectedTakeIds.clear();
     $("takesList").classList.add("empty-state");
     $("takesList").innerHTML = empty;
     $("takesScreenList").classList.add("empty-state");
     $("takesScreenList").innerHTML = empty;
     return;
   }
-  const html = takesHtml();
+
+  // Filter out any selected IDs that no longer exist in state.takes
+  const existingIds = new Set(state.takes.map(t => t.id));
+  for (const selectedId of state.selectedTakeIds) {
+    if (!existingIds.has(selectedId)) {
+      state.selectedTakeIds.delete(selectedId);
+    }
+  }
+
+  const selectedCount = state.selectedTakeIds.size;
+  const totalCount = state.takes.length;
+  const isDeleteDisabled = selectedCount === 0 ? "disabled" : "";
+  const isClearAllDisabled = totalCount === 0 ? "disabled" : "";
+
+  const bulkActionBarHtml = `
+    <div class="bulk-action-bar">
+      <button class="reactive-button" data-takes-action="select-all" type="button">Select All</button>
+      <button class="reactive-button" data-takes-action="deselect-all" type="button">Deselect All</button>
+      <button class="reactive-button destructive" data-takes-action="delete-selected" ${isDeleteDisabled} type="button">Delete Selected Takes</button>
+      <button class="reactive-button destructive" data-takes-action="clear-all" ${isClearAllDisabled} type="button">Clear All Visible Takes</button>
+      <span class="selected-count-badge">${selectedCount} of ${totalCount} selected</span>
+    </div>
+  `;
+
+  const html = bulkActionBarHtml + `<div class="takes-grid">${takesHtml()}</div>`;
   $("takesList").classList.remove("empty-state");
   $("takesList").innerHTML = html;
   $("takesScreenList").classList.remove("empty-state");
@@ -67,22 +92,29 @@ export function renderTakes() {
 }
 
 function takesHtml() {
-  return state.takes.map((take) => `
-    <article class="take-card">
-      <div class="section-head">
-        <div>
-          <h3>${escapeHtml(take.model)} take</h3>
-          <div class="meta-line">${escapeHtml(new Date(take.createdAt).toLocaleString())}</div>
+  return state.takes.map((take) => {
+    const isChecked = state.selectedTakeIds.has(take.id) ? "checked" : "";
+    return `
+      <article class="take-card" data-take-card-id="${escapeHtml(take.id)}">
+        <div class="take-card-select-row">
+          <input type="checkbox" class="take-select-checkbox" data-take-checkbox-id="${escapeHtml(take.id)}" ${isChecked} aria-label="Select take">
+          <span class="take-checkbox-label">Select</span>
         </div>
-        <button class="reactive-button" data-copy-path="${escapeHtml(take.outputPath)}" type="button">Copy path</button>
-        <button class="reactive-button" data-delete-take="${escapeHtml(take.id)}" type="button">Delete</button>
-      </div>
-      <p>${escapeHtml(take.sourceText)}</p>
-      <div class="meta-line">${escapeHtml(take.outputPath)}</div>
-      <canvas class="waveform" data-waveform-src="/api/audio?path=${encodeURIComponent(take.outputPath)}"></canvas>
-      <audio controls preload="none" src="/api/audio?path=${encodeURIComponent(take.outputPath)}"></audio>
-    </article>
-  `).join("");
+        <div class="section-head">
+          <div>
+            <h3>${escapeHtml(take.model)} take</h3>
+            <div class="meta-line">${escapeHtml(new Date(take.createdAt).toLocaleString())}</div>
+          </div>
+          <button class="reactive-button" data-copy-path="${escapeHtml(take.outputPath)}" type="button">Copy path</button>
+          <button class="reactive-button" data-delete-take="${escapeHtml(take.id)}" type="button">Delete</button>
+        </div>
+        <p>${escapeHtml(take.sourceText)}</p>
+        <div class="meta-line">${escapeHtml(take.outputPath)}</div>
+        <canvas class="waveform" data-waveform-src="/api/audio?path=${encodeURIComponent(take.outputPath)}"></canvas>
+        <audio controls preload="none" src="/api/audio?path=${encodeURIComponent(take.outputPath)}"></audio>
+      </article>
+    `;
+  }).join("");
 }
 
 export function updateGenerateCopy() {

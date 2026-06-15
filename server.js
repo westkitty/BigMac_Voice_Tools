@@ -399,6 +399,118 @@ async function route(req, res) {
       sendJson(res, 200, { ok: true, deleted: take });
       return;
     }
+    if (url.pathname === "/api/takes/delete-batch" && req.method === "POST") {
+      try {
+        const body = await readBody(req);
+        const takeIds = body.takeIds;
+        if (!Array.isArray(takeIds) || takeIds.length === 0) {
+          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "takeIds must be a non-empty array.", code: "INVALID_TAKE_IDS" }) + "\n");
+          return;
+        }
+        for (const id of takeIds) {
+          if (typeof id !== "string") {
+            res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+            res.end(JSON.stringify({ ok: false, error: "takeIds must contain only strings.", code: "INVALID_TAKE_IDS" }) + "\n");
+            return;
+          }
+        }
+        if (takeIds.length > 500) {
+          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "Batch size exceeds maximum of 500 takes.", code: "BATCH_TOO_LARGE" }) + "\n");
+          return;
+        }
+
+        const allTakes = await store.listTakes();
+        const takeMap = new Map(allTakes.map(t => [t.id, t]));
+
+        const deleted = [];
+        const skipped = [];
+        const errors = [];
+        const validTakes = [];
+
+        for (const id of takeIds) {
+          const take = takeMap.get(id);
+          if (!take) {
+            skipped.push({ id, reason: "TAKE_NOT_FOUND" });
+          } else {
+            if (!isAllowedAudioPath(take.outputPath, remoteConfig)) {
+              errors.push({ id, path: take.outputPath, error: "FORBIDDEN_PATH" });
+            } else {
+              validTakes.push(take);
+            }
+          }
+        }
+
+        if (validTakes.length === 0) {
+          const status = errors.length > 0 ? 409 : 404;
+          res.writeHead(status, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({
+            ok: false,
+            deleted,
+            skipped,
+            errors,
+            error: "No valid takes to delete."
+          }, null, 2) + "\n");
+          return;
+        }
+
+        // Perform remote file deletions
+        const outputPaths = validTakes.map(t => t.outputPath);
+        const quotedPaths = outputPaths.map(p => `'${String(p).replaceAll("'", "'\\''")}'`);
+
+        const remoteCmd = `for f in ${quotedPaths.join(" ")}; do
+  if [ -f "$f" ]; then
+    rm -f "$f" || echo "FAIL:$f"
+  else
+    echo "MISSING:$f"
+  fi
+done`;
+
+        const sshResult = await run("ssh", ["westcat", remoteCmd], { timeout: 20000 });
+
+        if (!sshResult.ok && sshResult.stderr && !sshResult.stdout) {
+          for (const take of validTakes) {
+            errors.push({ id: take.id, path: take.outputPath, error: sshResult.error || sshResult.stderr });
+          }
+        } else {
+          const lines = sshResult.stdout.split("\n");
+          const statusMap = new Map();
+          for (const line of lines) {
+            if (line.startsWith("MISSING:")) {
+              statusMap.set(line.substring(8), "MISSING");
+            } else if (line.startsWith("FAIL:")) {
+              statusMap.set(line.substring(5), "FAIL");
+            }
+          }
+
+          for (const take of validTakes) {
+            const status = statusMap.get(take.outputPath);
+            if (status === "MISSING") {
+              skipped.push({ id: take.id, reason: "FILE_MISSING" });
+            } else if (status === "FAIL") {
+              errors.push({ id: take.id, error: "DELETE_FAILED" });
+            } else {
+              deleted.push(take.id);
+            }
+          }
+        }
+
+        // Delete from store metadata database
+        await store.deleteTakes(validTakes.map(t => t.id));
+
+        sendJson(res, 200, {
+          ok: true,
+          deleted,
+          skipped,
+          errors
+        });
+        return;
+      } catch (err) {
+        sendError(res, err);
+        return;
+      }
+    }
     if (url.pathname === "/api/scenes/render-line" && req.method === "POST") {
       try {
         const body = await readBody(req);

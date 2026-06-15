@@ -1,5 +1,6 @@
 import { $, escapeHtml, state, setDramaStatus } from "../state.js";
 import { api } from "../api.js";
+import { resetPreviewAssembly } from "./previewAssembly.js";
 
 // Render takes grouped under a specific line card
 export function renderLineTakes(lineId) {
@@ -25,9 +26,25 @@ export function renderLineTakes(lineId) {
 
   const selectedTakeId = state.selectedTakesMap[lineId] || lineTakes.find(t => t.selected)?.id;
 
+  const selectedLineTakeIds = lineTakes.filter(t => state.selectedTakeIds.has(t.id)).map(t => t.id);
+  const selectedCount = selectedLineTakeIds.length;
+  const isDeleteDisabled = selectedCount === 0 ? "disabled" : "";
+
+  const bulkActionsHtml = `
+    <div class="line-takes-bulk-actions">
+      <button class="reactive-button small-btn" data-line-takes-action="select-all" type="button">Select All</button>
+      <button class="reactive-button small-btn" data-line-takes-action="deselect-all" type="button">Deselect All</button>
+      <button class="reactive-button destructive small-btn" data-line-takes-action="delete-selected" ${isDeleteDisabled} type="button">Delete Selected</button>
+      <span class="selected-badge">${selectedCount} selected</span>
+    </div>
+  `;
+
   container.innerHTML = `
     <div class="line-takes-group">
-      <h4>Takes</h4>
+      <div class="line-takes-header">
+        <h4>Takes</h4>
+        ${bulkActionsHtml}
+      </div>
       <div class="line-takes-list">
         ${lineTakes.map((take) => {
           const isSelected = take.id === selectedTakeId;
@@ -93,6 +110,7 @@ export function renderLineTakes(lineId) {
           return `
             <div class="take-item-card ${isSelected ? "selected" : ""}" id="take-${take.id}">
               <div class="take-meta">
+                <input type="checkbox" class="take-select-checkbox" data-take-checkbox-id="${take.id}" ${state.selectedTakeIds.has(take.id) ? "checked" : ""} aria-label="Select take">
                 <span class="take-badge">Take ${take.takeNumber}</span>
                 <span class="take-engine">${escapeHtml(take.engine)}</span>
                 <span class="take-voice">Voice: ${escapeHtml(voiceName)}</span>
@@ -116,6 +134,67 @@ export function renderLineTakes(lineId) {
     btn.addEventListener("click", async () => {
       const takeId = btn.dataset.takeId;
       await handleSelectTake(lineId, takeId);
+    });
+  });
+
+  // Bind change listener for checkboxes
+  container.querySelectorAll(".take-select-checkbox").forEach((cb) => {
+    cb.addEventListener("change", (e) => {
+      const takeId = cb.dataset.takeCheckboxId;
+      if (e.target.checked) {
+        state.selectedTakeIds.add(takeId);
+      } else {
+        state.selectedTakeIds.delete(takeId);
+      }
+      renderLineTakes(lineId);
+    });
+  });
+
+  // Bind click listener for line-specific bulk actions
+  container.querySelectorAll("[data-line-takes-action]").forEach((btn) => {
+    btn.addEventListener("click", async () => {
+      const action = btn.dataset.lineTakesAction;
+      if (action === "select-all") {
+        lineTakes.forEach(t => state.selectedTakeIds.add(t.id));
+        renderLineTakes(lineId);
+      } else if (action === "deselect-all") {
+        lineTakes.forEach(t => state.selectedTakeIds.delete(t.id));
+        renderLineTakes(lineId);
+      } else if (action === "delete-selected") {
+        const toDeleteIds = lineTakes.filter(t => state.selectedTakeIds.has(t.id)).map(t => t.id);
+        if (toDeleteIds.length === 0) return;
+        if (!confirm(`Delete ${toDeleteIds.length} selected takes for this line? This cannot be undone.`)) return;
+
+        setDramaStatus(`Deleting ${toDeleteIds.length} takes...`);
+        try {
+          const res = await api("/api/takes/delete-batch", {
+            method: "POST",
+            body: JSON.stringify({ takeIds: toDeleteIds })
+          });
+
+          // Clean up local selection state
+          toDeleteIds.forEach(id => state.selectedTakeIds.delete(id));
+
+          // If the currently selected take was deleted, clear it from selectedTakesMap
+          if (state.selectedTakesMap[lineId] && toDeleteIds.includes(state.selectedTakesMap[lineId])) {
+            delete state.selectedTakesMap[lineId];
+            resetPreviewAssembly();
+          }
+
+          // Reload takes list and refresh UI
+          const { takes } = await api("/api/takes");
+          state.takes = takes;
+
+          let statusMsg = `Deleted ${res.deleted.length} takes.`;
+          if (res.skipped && res.skipped.length > 0) {
+            statusMsg += ` ${res.skipped.length} missing.`;
+          }
+          setDramaStatus(statusMsg);
+          renderLineTakes(lineId);
+        } catch (err) {
+          setDramaStatus(`Error: ${err.message || err}`);
+        }
+      }
     });
   });
 }

@@ -91,6 +91,71 @@ test("take records can be deleted by id", async () => {
   }
 });
 
+test("multiple take records can be deleted in batch and references cleaned", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "bvt-store-"));
+  try {
+    const store = createStore(dir);
+    const take1 = await store.saveTake({
+      id: "take-1",
+      voiceId: "voice-1",
+      sourceText: "Delete batch 1",
+      outputPath: "/Volumes/wc2tb/Ai/VoiceTools/chatterbox/outputs/take1.wav",
+      projectId: "proj-1",
+      sceneId: "scene-1",
+      lineId: "line-1"
+    });
+    const take2 = await store.saveTake({
+      id: "take-2",
+      voiceId: "voice-1",
+      sourceText: "Delete batch 2",
+      outputPath: "/Volumes/wc2tb/Ai/VoiceTools/chatterbox/outputs/take2.wav",
+      projectId: "proj-1",
+      sceneId: "scene-1",
+      lineId: "line-2"
+    });
+    const take3 = await store.saveTake({
+      id: "take-3",
+      voiceId: "voice-1",
+      sourceText: "Keep this one",
+      outputPath: "/Volumes/wc2tb/Ai/VoiceTools/chatterbox/outputs/take3.wav",
+      projectId: "proj-1",
+      sceneId: "scene-1",
+      lineId: "line-3"
+    });
+
+    // select takes
+    await store.selectTake({ projectId: "proj-1", sceneId: "scene-1", lineId: "line-1", takeId: take1.id });
+    await store.selectTake({ projectId: "proj-1", sceneId: "scene-1", lineId: "line-2", takeId: take2.id });
+    await store.selectTake({ projectId: "proj-1", sceneId: "scene-1", lineId: "line-3", takeId: take3.id });
+
+    // Verify they are selected
+    let selected = await store.listSelectedTakes({ projectId: "proj-1", sceneId: "scene-1" });
+    assert.equal(selected.selectedTakes["line-1"], take1.id);
+    assert.equal(selected.selectedTakes["line-2"], take2.id);
+    assert.equal(selected.selectedTakes["line-3"], take3.id);
+
+    // Delete batch
+    const result = await store.deleteTakes([take1.id, take2.id, "take-nonexistent"]);
+    assert.equal(result.deleted.length, 2);
+    assert.equal(result.notFound.length, 1);
+    assert.equal(result.notFound[0], "take-nonexistent");
+
+    const takes = await store.listTakes();
+    assert.equal(takes.length, 1);
+    assert.equal(takes[0].id, take3.id);
+
+    // Verify selected takes references are cleaned
+    selected = await store.listSelectedTakes({ projectId: "proj-1", sceneId: "scene-1" });
+    assert.equal(selected.selectedTakes["line-1"], undefined);
+    assert.equal(selected.selectedTakes["line-2"], undefined);
+    assert.equal(selected.selectedTakes["line-3"], take3.id);
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+
+
 test("projects, characters, and scenes persist without losing old voices and takes", async () => {
   const dir = await mkdtemp(path.join(tmpdir(), "bvt-store-"));
   try {

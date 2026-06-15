@@ -421,3 +421,32 @@ test("route-level preview validation and error cases", async () => {
   });
 });
 
+test("route-level delete-batch validation and success cases", async () => {
+  await withServer(async (baseUrl) => {
+    // 1. empty takeIds
+    const resEmpty = await requestJson(baseUrl, "/api/takes/delete-batch", {
+      method: "POST",
+      body: JSON.stringify({ takeIds: [] })
+    });
+    assert.equal(resEmpty.response.status, 400);
+    assert.equal(resEmpty.body.code, "INVALID_TAKE_IDS");
+
+    // 2. non-array takeIds
+    const resNonArray = await requestJson(baseUrl, "/api/takes/delete-batch", {
+      method: "POST",
+      body: JSON.stringify({ takeIds: "take-1" })
+    });
+    assert.equal(resNonArray.response.status, 400);
+
+    // 3. all missing -> 404
+    const resAllMissing = await requestJson(baseUrl, "/api/takes/delete-batch", {
+      method: "POST",
+      body: JSON.stringify({ takeIds: ["missing-1", "missing-2"] })
+    });
+    assert.equal(resAllMissing.response.status, 404);
+    assert.equal(resAllMissing.body.skipped.length, 2);
+    assert.equal(resAllMissing.body.skipped[0].reason, "TAKE_NOT_FOUND");
+  });
+});
+
+

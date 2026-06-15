@@ -22,7 +22,8 @@ export const state = {
   showPreview: false,
   recorder: null,
   recordedBlob: null,
-  recordStream: null
+  recordStream: null,
+  selectedTakeIds: new Set()
 };
 
 export const helpContent = {

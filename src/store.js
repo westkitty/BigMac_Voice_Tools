@@ -194,9 +194,76 @@ export function createStore(rootDir) {
         throw new Error("Take was not found.");
       }
       const [deleted] = state.takes.splice(index, 1);
+
+      // Clean selectedTake references
+      state.selectedTakes = ensureArray(state.selectedTakes);
+      for (const manifest of state.selectedTakes) {
+        if (manifest.selectedTakes) {
+          let changed = false;
+          for (const lineId of Object.keys(manifest.selectedTakes)) {
+            if (manifest.selectedTakes[lineId] === id) {
+              delete manifest.selectedTakes[lineId];
+              changed = true;
+            }
+          }
+          if (changed) {
+            manifest.updatedAt = new Date().toISOString();
+          }
+        }
+      }
+
       await save(state);
       return deleted;
     },
+
+    async deleteTakes(ids) {
+      if (!Array.isArray(ids)) {
+        throw new Error("ids must be an array");
+      }
+      const state = await load();
+      const deleted = [];
+      const notFound = [];
+      const idsSet = new Set(ids);
+
+      const remainingTakes = [];
+      for (const take of state.takes) {
+        if (idsSet.has(take.id)) {
+          deleted.push(take);
+        } else {
+          remainingTakes.push(take);
+        }
+      }
+
+      const deletedIds = new Set(deleted.map(t => t.id));
+      for (const id of ids) {
+        if (!deletedIds.has(id)) {
+          notFound.push(id);
+        }
+      }
+
+      state.takes = remainingTakes;
+
+      // Clean selectedTake references
+      state.selectedTakes = ensureArray(state.selectedTakes);
+      for (const manifest of state.selectedTakes) {
+        if (manifest.selectedTakes) {
+          let changed = false;
+          for (const lineId of Object.keys(manifest.selectedTakes)) {
+            if (deletedIds.has(manifest.selectedTakes[lineId])) {
+              delete manifest.selectedTakes[lineId];
+              changed = true;
+            }
+          }
+          if (changed) {
+            manifest.updatedAt = new Date().toISOString();
+          }
+        }
+      }
+
+      await save(state);
+      return { deleted, notFound };
+    },
+
 
     async listProjects() {
       const state = await load();

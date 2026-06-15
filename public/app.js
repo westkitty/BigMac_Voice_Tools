@@ -12,6 +12,7 @@ import {
   loadVoices,
   renderCharacterSlots,
   renderScriptPreview,
+  renderTakes,
   renderVoices,
   saveVoice,
   setCaptureMode,
@@ -49,8 +50,85 @@ async function handleDocumentClick(event) {
       method: "POST",
       body: JSON.stringify({ id: deleteTake.dataset.deleteTake })
     });
+    state.selectedTakeIds.delete(deleteTake.dataset.deleteTake);
     setMessage("Output deleted.", "ok");
     await loadTakes();
+  }
+
+  // Handle take checkbox selection in Voice Lab / Review Screens
+  if (event.target.classList.contains("take-select-checkbox")) {
+    const takeId = event.target.dataset.takeCheckboxId;
+    if (event.target.checked) {
+      state.selectedTakeIds.add(takeId);
+    } else {
+      state.selectedTakeIds.delete(takeId);
+    }
+    renderTakes();
+  }
+
+  // Handle Voice Lab bulk actions
+  const takesAction = event.target.closest("[data-takes-action]");
+  if (takesAction) {
+    const action = takesAction.dataset.takesAction;
+    if (action === "select-all") {
+      state.takes.forEach(t => state.selectedTakeIds.add(t.id));
+      renderTakes();
+    } else if (action === "deselect-all") {
+      state.selectedTakeIds.clear();
+      renderTakes();
+    } else if (action === "delete-selected") {
+      const selectedCount = state.selectedTakeIds.size;
+      if (selectedCount === 0) return;
+      if (!confirm(`Delete ${selectedCount} selected takes? This cannot be undone.`)) return;
+
+      const takeIds = Array.from(state.selectedTakeIds);
+      setMessage(`Deleting ${selectedCount} takes...`);
+      try {
+        const res = await api("/api/takes/delete-batch", {
+          method: "POST",
+          body: JSON.stringify({ takeIds })
+        });
+
+        state.selectedTakeIds.clear();
+        let statusMsg = `Deleted ${res.deleted.length} takes.`;
+        if (res.skipped && res.skipped.length > 0) {
+          statusMsg += ` ${res.skipped.length} file${res.skipped.length === 1 ? " was" : "s were"} already missing.`;
+        }
+        if (res.errors && res.errors.length > 0) {
+          statusMsg += ` Failed to delete ${res.errors.length} files.`;
+        }
+        setMessage(statusMsg, "ok");
+        await loadTakes();
+      } catch (err) {
+        setMessage(err.message || String(err), "error");
+      }
+    } else if (action === "clear-all") {
+      const totalCount = state.takes.length;
+      if (totalCount === 0) return;
+      if (!confirm(`Delete all ${totalCount} visible takes? This cannot be undone.`)) return;
+
+      const takeIds = state.takes.map(t => t.id);
+      setMessage(`Clearing all ${totalCount} takes...`);
+      try {
+        const res = await api("/api/takes/delete-batch", {
+          method: "POST",
+          body: JSON.stringify({ takeIds })
+        });
+
+        state.selectedTakeIds.clear();
+        let statusMsg = `Cleared all ${res.deleted.length} takes.`;
+        if (res.skipped && res.skipped.length > 0) {
+          statusMsg += ` ${res.skipped.length} file${res.skipped.length === 1 ? " was" : "s were"} already missing.`;
+        }
+        if (res.errors && res.errors.length > 0) {
+          statusMsg += ` Failed to delete ${res.errors.length} files.`;
+        }
+        setMessage(statusMsg, "ok");
+        await loadTakes();
+      } catch (err) {
+        setMessage(err.message || String(err), "error");
+      }
+    }
   }
 
   const transform = event.target.closest("[data-transform]");
