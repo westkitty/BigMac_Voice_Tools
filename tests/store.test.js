@@ -220,3 +220,138 @@ test("older state shape loads with migration-safe defaults", async () => {
     await rm(dir, { recursive: true, force: true });
   }
 });
+
+test("saving character persists speech settings", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "bvt-store-"));
+  try {
+    const store = createStore(dir);
+    const project = await store.saveProject({ id: "p1", name: "P1" });
+    const character = await store.saveCharacter({
+      projectId: "p1",
+      name: "Test Character",
+      voiceId: "v1",
+      preferredEngine: "chatterbox",
+      speechSettings: {
+        delivery: "hushed tone",
+        speed: 1.1,
+        temperature: null,
+        exaggeration: 0.6,
+        cfgWeight: 0.7,
+        seed: 42
+      }
+    });
+
+    const reloaded = createStore(dir);
+    const chars = await reloaded.listCharacters("p1");
+    assert.equal(chars.length, 1);
+    assert.deepEqual(chars[0].speechSettings, {
+      delivery: "hushed tone",
+      speed: 1.1,
+      temperature: null,
+      exaggeration: 0.6,
+      cfgWeight: 0.7,
+      seed: 42
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("saving scene line persists speech override", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "bvt-store-"));
+  try {
+    const store = createStore(dir);
+    const project = await store.saveProject({ id: "p1", name: "P1" });
+    const scene = await store.saveScene({
+      projectId: "p1",
+      title: "S1",
+      lines: [{
+        id: "L001",
+        speaker: "TIGER",
+        text: "Yo",
+        speechSettings: {
+          delivery: "angry",
+          speed: null,
+          temperature: 0.85,
+          exaggeration: null,
+          cfgWeight: 0.4,
+          seed: null
+        }
+      }]
+    });
+
+    const reloaded = createStore(dir);
+    const scenes = await reloaded.listScenes("p1");
+    assert.equal(scenes.length, 1);
+    assert.deepEqual(scenes[0].lines[0].speechSettings, {
+      delivery: "angry",
+      speed: null,
+      temperature: 0.85,
+      exaggeration: null,
+      cfgWeight: 0.4,
+      seed: null
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});
+
+test("saving take stores speech settings metadata", async () => {
+  const dir = await mkdtemp(path.join(tmpdir(), "bvt-store-"));
+  try {
+    const store = createStore(dir);
+    const take = await store.saveTake({
+      voiceId: "v1",
+      sourceText: "Take text",
+      outputPath: "/outputs/take.wav",
+      speechSettings: {
+        effective: {
+          delivery: "whisper",
+          speed: 0.9,
+          temperature: null,
+          exaggeration: 0.4,
+          cfgWeight: 0.6,
+          seed: null
+        },
+        activeGeneratorParams: {
+          exaggeration: 0.4,
+          cfgWeight: 0.6
+        },
+        metadataOnly: {
+          delivery: "whisper",
+          speed: 0.9,
+          temperature: null,
+          seed: null
+        },
+        supportNote: "Only Standard Chatterbox uses exaggeration and cfgWeight."
+      }
+    });
+
+    const reloaded = createStore(dir);
+    const takes = await reloaded.listTakes();
+    assert.equal(takes.length, 1);
+    assert.deepEqual(takes[0].speechSettings, {
+      effective: {
+        delivery: "whisper",
+        speed: 0.9,
+        temperature: null,
+        exaggeration: 0.4,
+        cfgWeight: 0.6,
+        seed: null
+      },
+      activeGeneratorParams: {
+        exaggeration: 0.4,
+        cfgWeight: 0.6
+      },
+      metadataOnly: {
+        delivery: "whisper",
+        speed: 0.9,
+        temperature: null,
+        seed: null
+      },
+      supportNote: "Only Standard Chatterbox uses exaggeration and cfgWeight."
+    });
+  } finally {
+    await rm(dir, { recursive: true, force: true });
+  }
+});

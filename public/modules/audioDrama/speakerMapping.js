@@ -135,7 +135,15 @@ async function handleQuickCreateCharacter(speaker, onMappingChanged) {
         name: speaker,
         voiceId: defaultVoiceId,
         preferredEngine: "chatterbox",
-        delivery: ""
+        delivery: "",
+        speechSettings: {
+          delivery: "",
+          speed: null,
+          temperature: null,
+          exaggeration: null,
+          cfgWeight: null,
+          seed: null
+        }
       })
     });
 

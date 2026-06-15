@@ -34,6 +34,12 @@ function ensureArray(value) {
   return Array.isArray(value) ? value : [];
 }
 
+function parseNumeric(val) {
+  if (val === undefined || val === null || String(val).trim() === "") return null;
+  const num = Number(val);
+  return isNaN(num) ? null : num;
+}
+
 async function readJson(file, fallback) {
   try {
     return JSON.parse(await readFile(file, "utf8"));
@@ -166,6 +172,7 @@ export function createStore(rootDir) {
         sourceText: String(input.sourceText),
         model: input.model || "Standard",
         settings: input.settings || {},
+        speechSettings: input.speechSettings || null,
         outputPath: input.outputPath,
         notes: input.notes || "",
         rating: Number(input.rating || 0),
@@ -256,6 +263,21 @@ export function createStore(rootDir) {
         delivery: String(input.delivery || ""),
         forbidden: ensureArray(input.forbidden).map(String),
         notes: String(input.notes || ""),
+        speechSettings: input.speechSettings ? {
+          delivery: input.speechSettings.delivery !== undefined && input.speechSettings.delivery !== null ? String(input.speechSettings.delivery).trim() : "",
+          speed: parseNumeric(input.speechSettings.speed),
+          temperature: parseNumeric(input.speechSettings.temperature),
+          exaggeration: parseNumeric(input.speechSettings.exaggeration),
+          cfgWeight: parseNumeric(input.speechSettings.cfgWeight),
+          seed: parseNumeric(input.speechSettings.seed)
+        } : (existing?.speechSettings || {
+          delivery: "",
+          speed: null,
+          temperature: null,
+          exaggeration: null,
+          cfgWeight: null,
+          seed: null
+        }),
         createdAt: existing?.createdAt || now,
         updatedAt: now
       };
@@ -299,18 +321,30 @@ export function createStore(rootDir) {
         title,
         rawText: String(input.rawText || ""),
         parsedResult: input.parsedResult || null,
-        lines: ensureArray(input.lines).map((line, index) => ({
-          id: String(line.id || `L${String(index + 1).padStart(3, "0")}`),
-          type: ["dialogue", "narration", "action"].includes(line.type) ? line.type : "dialogue",
-          speaker: String(line.speaker || "UNKNOWN").trim() || "UNKNOWN",
-          text: String(line.text || ""),
-          emotion: String(line.emotion || ""),
-          pace: String(line.pace || ""),
-          deliveryCue: String(line.deliveryCue || ""),
-          takes: Math.max(1, Number(line.takes || 1)),
-          characterId: String(line.characterId || ""),
-          voiceId: String(line.voiceId || "")
-        })),
+        lines: ensureArray(input.lines).map((line, index) => {
+          const existingLine = existing?.lines?.find((el) => el.id === line.id);
+          const speechSettings = line.speechSettings ? {
+            delivery: line.speechSettings.delivery !== undefined && line.speechSettings.delivery !== null ? String(line.speechSettings.delivery) : "",
+            speed: parseNumeric(line.speechSettings.speed),
+            temperature: parseNumeric(line.speechSettings.temperature),
+            exaggeration: parseNumeric(line.speechSettings.exaggeration),
+            cfgWeight: parseNumeric(line.speechSettings.cfgWeight),
+            seed: parseNumeric(line.speechSettings.seed)
+          } : (existingLine?.speechSettings || null);
+          return {
+            id: String(line.id || `L${String(index + 1).padStart(3, "0")}`),
+            type: ["dialogue", "narration", "action"].includes(line.type) ? line.type : "dialogue",
+            speaker: String(line.speaker || "UNKNOWN").trim() || "UNKNOWN",
+            text: String(line.text || ""),
+            emotion: String(line.emotion || ""),
+            pace: String(line.pace || ""),
+            deliveryCue: String(line.deliveryCue || ""),
+            takes: Math.max(1, Number(line.takes || 1)),
+            characterId: String(line.characterId || ""),
+            voiceId: String(line.voiceId || ""),
+            speechSettings
+          };
+        }),
         warnings: ensureArray(input.warnings).map(String),
         createdAt: existing?.createdAt || now,
         updatedAt: now

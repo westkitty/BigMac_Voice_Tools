@@ -34,6 +34,61 @@ export function renderLineTakes(lineId) {
           const createdTime = new Date(take.createdAt).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' });
           const voice = state.voices.find(v => v.id === take.voiceId);
           const voiceName = voice ? voice.name : `ID: ${take.voiceId.slice(0, 8)}`;
+
+          let speechSettingsHtml = "";
+          if (take.speechSettings) {
+            const ss = take.speechSettings;
+            const eff = ss.effective || {};
+            const act = ss.activeGeneratorParams || {};
+            
+            const items = [];
+            if (eff.delivery) {
+              items.push(`<span class="take-settings-item" title="Delivery Note"><b>Delivery:</b> "${escapeHtml(eff.delivery)}"</span>`);
+            }
+            if (eff.exaggeration !== undefined && eff.exaggeration !== null) {
+              const isActive = act.exaggeration !== undefined && act.exaggeration !== null;
+              items.push(`<span class="take-settings-item ${isActive ? "active-param" : "meta-param"}" title="${isActive ? 'Active Generator Parameter' : 'Metadata/Note'}"><b>Exg:</b> ${eff.exaggeration}${isActive ? "" : " (note)"}</span>`);
+            }
+            if (eff.cfgWeight !== undefined && eff.cfgWeight !== null) {
+              const isActive = act.cfgWeight !== undefined && act.cfgWeight !== null;
+              items.push(`<span class="take-settings-item ${isActive ? "active-param" : "meta-param"}" title="${isActive ? 'Active Generator Parameter' : 'Metadata/Note'}"><b>CFG:</b> ${eff.cfgWeight}${isActive ? "" : " (note)"}</span>`);
+            }
+            if (eff.speed !== undefined && eff.speed !== null) {
+              items.push(`<span class="take-settings-item meta-param" title="Metadata/Note"><b>Spd:</b> ${eff.speed} (note)</span>`);
+            }
+            if (eff.temperature !== undefined && eff.temperature !== null) {
+              items.push(`<span class="take-settings-item meta-param" title="Metadata/Note"><b>Temp:</b> ${eff.temperature} (note)</span>`);
+            }
+            if (eff.seed !== undefined && eff.seed !== null) {
+              items.push(`<span class="take-settings-item meta-param" title="Metadata/Note"><b>Seed:</b> ${eff.seed} (note)</span>`);
+            }
+
+            if (items.length > 0) {
+              const modelKind = take.model || "Standard";
+              speechSettingsHtml = `
+                <div class="take-speech-settings">
+                  <div class="take-speech-settings-items">${items.join(" | ")}</div>
+                  <div class="take-speech-settings-support">${escapeHtml(ss.supportNote || `Model: ${modelKind}`)}</div>
+                </div>
+              `;
+            }
+          } else if (take.settings) {
+            // Fallback for older takes
+            const items = [];
+            if (take.settings.exaggeration !== undefined && take.settings.exaggeration !== null) {
+              items.push(`<span class="take-settings-item active-param" title="Active Generator Parameter"><b>Exg:</b> ${take.settings.exaggeration}</span>`);
+            }
+            if (take.settings.cfgWeight !== undefined && take.settings.cfgWeight !== null) {
+              items.push(`<span class="take-settings-item active-param" title="Active Generator Parameter"><b>CFG:</b> ${take.settings.cfgWeight}</span>`);
+            }
+            if (items.length > 0) {
+              speechSettingsHtml = `
+                <div class="take-speech-settings">
+                  <div class="take-speech-settings-items">${items.join(" | ")}</div>
+                </div>
+              `;
+            }
+          }
           
           return `
             <div class="take-item-card ${isSelected ? "selected" : ""}" id="take-${take.id}">
@@ -43,6 +98,7 @@ export function renderLineTakes(lineId) {
                 <span class="take-voice">Voice: ${escapeHtml(voiceName)}</span>
                 <span class="take-time">${createdTime}</span>
               </div>
+              ${speechSettingsHtml}
               <audio controls src="/api/audio?path=${encodeURIComponent(take.outputPath)}"></audio>
               <button class="reactive-button select-take-btn ${isSelected ? "primary" : ""}" 
                       data-take-id="${take.id}" data-line-id="${lineId}" type="button">

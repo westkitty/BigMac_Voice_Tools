@@ -51,6 +51,28 @@ export function preflightRenderLine(lineId) {
 
   const engine = mapping.character.preferredEngine || "chatterbox";
 
+  const deliveryOverrideInput = document.querySelector(`[data-line-id="${CSS.escape(lineId)}"][data-line-field="speechSettings.delivery"]`);
+  const exaggerationOverrideInput = document.querySelector(`[data-line-id="${CSS.escape(lineId)}"][data-line-field="speechSettings.exaggeration"]`);
+  const cfgWeightOverrideInput = document.querySelector(`[data-line-id="${CSS.escape(lineId)}"][data-line-field="speechSettings.cfgWeight"]`);
+  const speedOverrideInput = document.querySelector(`[data-line-id="${CSS.escape(lineId)}"][data-line-field="speechSettings.speed"]`);
+  const tempOverrideInput = document.querySelector(`[data-line-id="${CSS.escape(lineId)}"][data-line-field="speechSettings.temperature"]`);
+  const seedOverrideInput = document.querySelector(`[data-line-id="${CSS.escape(lineId)}"][data-line-field="speechSettings.seed"]`);
+
+  const parseNumOrNull = (input) => {
+    if (!input || input.value.trim() === "") return null;
+    const val = Number(input.value);
+    return isNaN(val) ? null : val;
+  };
+
+  const speechSettings = {
+    delivery: deliveryOverrideInput ? deliveryOverrideInput.value.trim() : "",
+    speed: parseNumOrNull(speedOverrideInput),
+    temperature: parseNumOrNull(tempOverrideInput),
+    exaggeration: parseNumOrNull(exaggerationOverrideInput),
+    cfgWeight: parseNumOrNull(cfgWeightOverrideInput),
+    seed: parseNumOrNull(seedOverrideInput)
+  };
+
   return { 
     ok: true, 
     payload: { 
@@ -62,7 +84,8 @@ export function preflightRenderLine(lineId) {
       takes, 
       characterId: mapping.character.id, 
       voiceId: mapping.character.voiceId, 
-      engine 
+      engine,
+      speechSettings
     } 
   };
 }

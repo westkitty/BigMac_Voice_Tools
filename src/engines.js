@@ -16,12 +16,21 @@ export async function generateTake(input) {
   if (engine !== "chatterbox") {
     throw new Error(`Engine "${engine}" is not configured yet.`);
   }
+
+  let exaggeration = input.exaggeration;
+  let cfgWeight = input.cfgWeight;
+
+  if (input.speechSettings && input.speechSettings.activeGeneratorParams) {
+    exaggeration = input.speechSettings.activeGeneratorParams.exaggeration;
+    cfgWeight = input.speechSettings.activeGeneratorParams.cfgWeight;
+  }
+
   const generated = await generateWithChatterbox({
     voice: input.voice,
     text: input.text,
     model: input.model,
-    exaggeration: input.exaggeration,
-    cfgWeight: input.cfgWeight
+    exaggeration,
+    cfgWeight
   });
   return {
     remotePath: generated.output_path,

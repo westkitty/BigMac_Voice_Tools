@@ -18,13 +18,17 @@ export async function generateWithChatterbox({ voice, text, model, exaggeration,
     throw new Error(`Could not copy reference voice to Big Mac: ${scp.stderr || scp.error}`);
   }
 
-  const payload = JSON.stringify({
+  const modelKind = model || "Standard";
+  const requestPayload = {
     text: cleanText,
     reference_audio: remoteVoicePath,
-    model_kind: model || "Standard",
-    exaggeration: Number(exaggeration || 0.5),
-    cfg_weight: Number(cfgWeight || 0.5)
-  });
+    model_kind: modelKind
+  };
+  if (modelKind === "Standard") {
+    requestPayload.exaggeration = exaggeration !== undefined && exaggeration !== null ? Number(exaggeration) : 0.5;
+    requestPayload.cfg_weight = cfgWeight !== undefined && cfgWeight !== null ? Number(cfgWeight) : 0.5;
+  }
+  const payload = JSON.stringify(requestPayload);
   const command = [
     `cd ${shellQuote(config.remoteEngineRoot)}`,
     "source .venv/bin/activate",

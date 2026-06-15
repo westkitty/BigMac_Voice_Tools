@@ -79,6 +79,96 @@ async function serveStatic(req, res) {
     .pipe(res);
 }
 
+export function resolveEffectiveSpeechSettings({ character, line, body }) {
+  // 1. Global defaults
+  const effective = {
+    delivery: "",
+    speed: 1.0,
+    temperature: null,
+    exaggeration: 0.5,
+    cfgWeight: 0.5,
+    seed: null
+  };
+
+  // 2. Character defaults
+  if (character?.speechSettings) {
+    const cs = character.speechSettings;
+    if (cs.delivery !== undefined && cs.delivery !== null && cs.delivery !== "") effective.delivery = cs.delivery;
+    if (cs.speed !== undefined && cs.speed !== null) effective.speed = cs.speed;
+    if (cs.temperature !== undefined && cs.temperature !== null) effective.temperature = cs.temperature;
+    if (cs.exaggeration !== undefined && cs.exaggeration !== null) effective.exaggeration = cs.exaggeration;
+    if (cs.cfgWeight !== undefined && cs.cfgWeight !== null) effective.cfgWeight = cs.cfgWeight;
+    if (cs.seed !== undefined && cs.seed !== null) effective.seed = cs.seed;
+  }
+
+  // 3. Line overrides
+  if (line?.speechSettings) {
+    const ls = line.speechSettings;
+    if (ls.delivery !== undefined && ls.delivery !== null && ls.delivery !== "") effective.delivery = ls.delivery;
+    if (ls.speed !== undefined && ls.speed !== null) effective.speed = ls.speed;
+    if (ls.temperature !== undefined && ls.temperature !== null) effective.temperature = ls.temperature;
+    if (ls.exaggeration !== undefined && ls.exaggeration !== null) effective.exaggeration = ls.exaggeration;
+    if (ls.cfgWeight !== undefined && ls.cfgWeight !== null) effective.cfgWeight = ls.cfgWeight;
+    if (ls.seed !== undefined && ls.seed !== null) effective.seed = ls.seed;
+  }
+
+  // 4. Request overrides (explicit speechSettings)
+  if (body?.speechSettings) {
+    const bs = body.speechSettings;
+    if (bs.delivery !== undefined && bs.delivery !== null && bs.delivery !== "") effective.delivery = bs.delivery;
+    if (bs.speed !== undefined && bs.speed !== null) effective.speed = bs.speed;
+    if (bs.temperature !== undefined && bs.temperature !== null) effective.temperature = bs.temperature;
+    if (bs.exaggeration !== undefined && bs.exaggeration !== null) effective.exaggeration = bs.exaggeration;
+    if (bs.cfgWeight !== undefined && bs.cfgWeight !== null) effective.cfgWeight = bs.cfgWeight;
+    if (bs.seed !== undefined && bs.seed !== null) effective.seed = bs.seed;
+  }
+
+  // Legacy/Voice Lab overrides directly in request body
+  if (body?.exaggeration !== undefined && body.exaggeration !== null && body.exaggeration !== "") {
+    effective.exaggeration = Number(body.exaggeration);
+  }
+  if (body?.cfgWeight !== undefined && body.cfgWeight !== null && body.cfgWeight !== "") {
+    effective.cfgWeight = Number(body.cfgWeight);
+  }
+
+  // Clamp active generator parameters
+  if (effective.exaggeration < 0.25) effective.exaggeration = 0.25;
+  if (effective.exaggeration > 1.2) effective.exaggeration = 1.2;
+  if (effective.cfgWeight < 0) effective.cfgWeight = 0;
+  if (effective.cfgWeight > 1) effective.cfgWeight = 1;
+
+  // Determine active generator parameters based on model kind
+  const modelKind = body?.model || character?.preferredEngine === "chatterbox" && line?.model || line?.model || "Standard";
+  const isTurbo = modelKind === "Turbo";
+
+  const activeGeneratorParams = {};
+  if (!isTurbo) {
+    activeGeneratorParams.exaggeration = effective.exaggeration;
+    activeGeneratorParams.cfgWeight = effective.cfgWeight;
+  }
+
+  const metadataOnly = {
+    delivery: effective.delivery,
+    speed: effective.speed,
+    temperature: effective.temperature,
+    seed: effective.seed
+  };
+
+  if (isTurbo) {
+    metadataOnly.exaggeration = effective.exaggeration;
+    metadataOnly.cfgWeight = effective.cfgWeight;
+  }
+
+  return {
+    effective,
+    activeGeneratorParams,
+    metadataOnly,
+    supportNote: isTurbo 
+      ? "Turbo Chatterbox does not support exaggeration or cfgWeight; they are saved as metadata."
+      : "Only Standard Chatterbox uses exaggeration and cfgWeight; unsupported settings are saved as metadata."
+  };
+}
+
 async function validateRenderLineRequest(body, store) {
   if (!body.sceneId) {
     return { ok: false, error: "sceneId is required.", code: "MISSING_SCENE", status: 400 };
@@ -141,6 +231,8 @@ async function validateRenderLineRequest(body, store) {
     return { ok: false, error: `Engine "${engine}" is not configured yet.`, code: "ENGINE_NOT_CONFIGURED", status: 501 };
   }
 
+  const speechSettings = resolveEffectiveSpeechSettings({ character, line, body });
+
   return {
     ok: true,
     scene,
@@ -150,12 +242,13 @@ async function validateRenderLineRequest(body, store) {
     voice,
     engine,
     takeCount,
-    textToRender
+    textToRender,
+    speechSettings
   };
 }
 
 async function renderValidatedLine(validation, body, store, remoteConfig) {
-  const { scene, line, character, voice, engine, takeCount, textToRender } = validation;
+  const { scene, line, character, voice, engine, takeCount, textToRender, speechSettings } = validation;
   const takes = [];
   for (let index = 0; index < takeCount; index += 1) {
     const result = await generateTake({
@@ -163,8 +256,7 @@ async function renderValidatedLine(validation, body, store, remoteConfig) {
       voice,
       text: textToRender,
       model: body.model,
-      exaggeration: body.exaggeration,
-      cfgWeight: body.cfgWeight
+      speechSettings
     });
     
     // Output path allowlist check
@@ -188,7 +280,11 @@ async function renderValidatedLine(validation, body, store, remoteConfig) {
       deliveryCue: line.deliveryCue,
       voiceId: voice.id,
       model: body.model || result.metadata.model || "Standard",
-      settings: { exaggeration: Number(body.exaggeration || 0.5), cfgWeight: Number(body.cfgWeight || 0.5) },
+      settings: { 
+        exaggeration: Number(speechSettings.effective.exaggeration), 
+        cfgWeight: Number(speechSettings.effective.cfgWeight) 
+      },
+      speechSettings,
       outputPath: result.remotePath
     }));
   }
@@ -567,8 +663,12 @@ async function route(req, res) {
   }
 }
 
-await mkdir(dataRoot, { recursive: true });
-const server = http.createServer(route);
-server.listen(port, host, () => {
-  console.log(`BigMac VoiceTools Studio listening on http://${host}:${port}`);
-});
+const isMain = process.argv[1] && (process.argv[1] === fileURLToPath(import.meta.url) || process.argv[1].endsWith("/server.js") || process.argv[1].endsWith("\\server.js"));
+
+if (isMain) {
+  await mkdir(dataRoot, { recursive: true });
+  const server = http.createServer(route);
+  server.listen(port, host, () => {
+    console.log(`BigMac VoiceTools Studio listening on http://${host}:${port}`);
+  });
+}

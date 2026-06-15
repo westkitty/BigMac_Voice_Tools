@@ -915,6 +915,53 @@ pre {
   font-size: 0.72rem;
 }
 
+.take-speech-settings {
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  border-radius: 6px;
+  padding: 6px 8px;
+  font-size: 0.68rem;
+  line-height: 1.4;
+  margin: 2px 0 6px 0;
+}
+.take-speech-settings-items {
+  color: #ccc;
+}
+.take-speech-settings-support {
+  margin-top: 4px;
+  font-size: 0.62rem;
+  color: var(--muted);
+}
+.take-settings-item {
+  display: inline-block;
+}
+.active-param {
+  color: var(--cyan);
+}
+.meta-param {
+  color: var(--muted);
+  font-style: italic;
+}
+.summary-setting-item {
+  display: inline-block;
+  background: rgba(255, 255, 255, 0.04);
+  padding: 2px 6px;
+  border-radius: 4px;
+  border: 1px solid rgba(255, 255, 255, 0.06);
+}
+.summary-setting-item.active-param {
+  border-color: rgba(0, 242, 254, 0.2);
+  background: rgba(0, 242, 254, 0.03);
+}
+.summary-setting-item.meta-param {
+  border-color: rgba(255, 255, 255, 0.05);
+}
+.setting-src {
+  font-size: 0.62rem;
+  color: var(--muted);
+  opacity: 0.8;
+}
+
 /* Scene Render Summary Panel */
 .scene-render-summary {
   margin-top: 16px;
