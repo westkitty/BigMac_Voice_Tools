@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BigMac VoiceTools Launcher</title>
+    <link rel="stylesheet" href="/styles.css">
+    <style>
+      body { min-height: 100vh; display: grid; place-items: center; padding: 24px; }
+      .launcher-card { max-width: 720px; width: min(720px, 100%); }
+      .launcher-actions { display: flex; gap: 12px; flex-wrap: wrap; margin-top: 18px; }
+    </style>
+  </head>
+  <body>
+    <main class="launcher-card glass-card glow-panel">
+      <p class="eyebrow">BigMac VoiceTools</p>
+      <h1>Studio launcher</h1>
+      <p class="meta-line">Open the studio in a named, dedicated browser window. The app still runs locally from this wrapper server; this page just keeps the studio out of your normal tab pile.</p>
+      <p class="meta-line warning" id="launcherStatus">Click Open Studio Window. Browsers usually block automatic popup windows without a user click.</p>
+      <div class="launcher-actions">
+        <button class="reactive-button primary" id="openStudioButton" type="button">Open Studio Window</button>
+        <a class="reactive-button" href="/" target="BigMacVoiceToolsStudio" rel="noopener">Open as tab</a>
+      </div>
+    </main>
+    <script type="module">
+      import { openStudioWindow } from "/modules/navigation.js";
+      const status = document.getElementById("launcherStatus");
+      document.getElementById("openStudioButton").addEventListener("click", () => {
+        const ok = openStudioWindow();
+        status.textContent = ok ? "Studio window opened." : "Popup blocked. Use the Open as tab fallback or allow popups for this local address.";
+        status.className = `meta-line ${ok ? "" : "warning"}`.trim();
+      });
+    </script>
+  </body>
+</html>
