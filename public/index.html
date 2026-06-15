@@ -1,0 +1,302 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>BigMac VoiceTools Studio</title>
+    <link rel="stylesheet" href="/styles.css">
+  </head>
+  <body>
+    <div class="app-shell">
+      <header class="topbar glow-panel">
+        <div>
+          <p class="eyebrow">BigMac VoiceTools</p>
+          <h1>BigMac VoiceTools</h1>
+        </div>
+        <button class="reactive-button help-button" data-help="global" data-tip="Open the studio help guide" type="button">Help</button>
+        <div id="statusRail" class="status-rail" aria-live="polite"></div>
+      </header>
+
+      <nav class="mode-nav glow-panel" aria-label="BigMac VoiceTools modes">
+        <button class="chip active" data-view-target="voiceLabView" type="button">Voice Lab</button>
+        <button class="chip" data-view-target="audioDramaView" type="button">Audio Drama</button>
+        <button class="chip" data-view-target="takesView" type="button">Takes</button>
+        <button class="chip" data-view-target="voicesView" type="button">Voices</button>
+        <button class="chip" data-view-target="healthView" type="button">Health</button>
+      </nav>
+
+      <main id="voiceLabView" class="console-grid app-view active-view">
+        <section class="script-panel glass-card glow-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Script</p>
+              <h2>Text to generate</h2>
+            </div>
+            <button class="icon-button faq-button" data-help="script" data-tip="Script formatting tips" type="button">?</button>
+            <div class="mode-toggle" role="group" aria-label="Mode">
+              <button class="chip active" id="simpleMode" type="button" data-tip="Hide advanced model controls">Simple</button>
+              <button class="chip" id="advancedMode" type="button" data-tip="Show model and delivery controls">Advanced</button>
+            </div>
+          </div>
+          <textarea id="scriptText" spellcheck="true">This is a local Big Mac voice tools test.</textarea>
+          <div class="document-row">
+            <label class="document-upload" data-tip="Load a plain text or Markdown document and format it for speech">
+              <span>Document</span>
+              <input id="documentFile" type="file" accept=".txt,.md,.markdown,text/plain,text/markdown">
+            </label>
+            <button class="reactive-button" id="formatDocumentButton" type="button" data-tip="Apply speech-friendly paragraph and punctuation formatting">Format document</button>
+          </div>
+          <div class="tool-row">
+            <button class="reactive-button" data-transform="clean" data-tip="Normalize whitespace and punctuation spacing">Clean narration</button>
+            <button class="reactive-button" data-transform="syntax" data-tip="Expand common acronyms and add pause-friendly line breaks">Tune syntax</button>
+            <button class="reactive-button" data-transform="paragraph-check" data-tip="Check for long paragraphs, long sentences, and missing punctuation">Check paragraphs</button>
+            <button class="reactive-button" data-transform="dialogue" data-tip="Parse Name: line dialogue turns for character generation">Parse dialogue</button>
+            <button class="reactive-button" data-transform="sentences" data-tip="Put each sentence on a separate line">Split sentences</button>
+            <button class="reactive-button" data-transform="paragraphs" data-tip="Clean paragraph spacing">Chunk paragraphs</button>
+          </div>
+          <div id="syntaxReport" class="syntax-report"></div>
+          <div class="preview-controls">
+            <button class="chip" id="previewToggle" type="button" data-tip="Show a colour-coded visual breakdown of dialogue turns">Script preview</button>
+            <span class="preview-count" id="previewCount"></span>
+          </div>
+          <div id="scriptPreview" class="script-preview hidden"></div>
+        </section>
+
+        <aside class="voice-panel glass-card glow-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Voice</p>
+              <h2>Voice capture</h2>
+            </div>
+            <button class="icon-button faq-button" data-help="voice" data-tip="Voice capture tips" type="button">?</button>
+            <button class="icon-button" id="refreshButton" type="button" data-tip="Refresh Big Mac, tunnel, and wrapper status">↻</button>
+          </div>
+
+          <div class="capture-tabs" role="tablist" aria-label="Voice capture mode">
+            <button class="chip active" id="uploadTab" type="button" role="tab" aria-selected="true">Upload</button>
+            <button class="chip" id="recordTab" type="button" role="tab" aria-selected="false">Record</button>
+          </div>
+
+          <form id="voiceForm" class="voice-form">
+            <label>
+              <span>Name</span>
+              <input id="voiceName" required placeholder="Narrator">
+            </label>
+            <label>
+              <span>Tags</span>
+              <input id="voiceTags" placeholder="calm, narration">
+            </label>
+            <label>
+              <span>Notes</span>
+              <input id="voiceNotes" placeholder="Room, mic, style, project">
+            </label>
+            <label class="file-drop" id="uploadPane">
+              <span>Reference WAV/MP3/M4A</span>
+              <input id="voiceFile" type="file" accept="audio/*" required>
+            </label>
+            <div class="record-pane hidden" id="recordPane">
+              <div class="record-controls">
+                <button class="reactive-button primary" id="recordStart" type="button">Start recording</button>
+                <button class="reactive-button" id="recordStop" type="button" disabled>Stop</button>
+              </div>
+              <audio id="recordPreview" controls class="hidden"></audio>
+              <p class="meta-line" id="recordStatus">Record a short clean sample, then save it.</p>
+            </div>
+            <button class="reactive-button primary" type="submit">Save voice</button>
+          </form>
+
+          <div id="voiceList" class="voice-list"></div>
+
+          <div class="character-panel">
+            <div class="section-head compact-head">
+              <div>
+                <p class="eyebrow">Characters</p>
+                <h2>Conversation voices</h2>
+              </div>
+              <button class="icon-button faq-button" data-help="characters" data-tip="Conversation setup tips" type="button">?</button>
+            </div>
+            <label>
+              <span>Speaker count</span>
+              <select id="speakerCount" data-tip="Use one to four speakers for dialogue generation">
+                <option value="1">1 speaker</option>
+                <option value="2" selected>2 speakers</option>
+                <option value="3">3 speakers</option>
+                <option value="4">4 speakers</option>
+              </select>
+            </label>
+            <div id="characterSlots" class="character-slots"></div>
+          </div>
+
+          <div id="advancedControls" class="advanced-controls hidden">
+            <h3>Advanced delivery</h3>
+            <label>
+              <span>Model</span>
+              <select id="modelKind">
+                <option>Turbo</option>
+                <option>Standard</option>
+              </select>
+            </label>
+            <label>
+              <span>Exaggeration</span>
+              <input id="exaggeration" type="range" min="0.25" max="1.2" step="0.05" value="0.5">
+            </label>
+            <label>
+              <span>CFG weight</span>
+              <input id="cfgWeight" type="range" min="0" max="1" step="0.05" value="0.5">
+            </label>
+          </div>
+        </aside>
+
+        <section class="action-panel glass-card glow-panel">
+          <div>
+            <p class="eyebrow">Generate</p>
+            <h2>Current take</h2>
+          </div>
+          <button id="generateButton" class="generate-button" type="button" data-tip="Generate the current script with the selected voice">
+            <span>Generate voice</span>
+            <small id="generateSubtext">Select a voice first</small>
+          </button>
+          <button id="conversationButton" class="generate-button secondary-generate" type="button" data-tip="Generate each dialogue line with its assigned character voice">
+            <span>Generate conversation</span>
+            <small>Uses Name: line syntax</small>
+          </button>
+          <div id="message" class="message" role="status"></div>
+        </section>
+
+        <section class="takes-panel glass-card glow-panel">
+          <div class="section-head">
+            <div>
+              <p class="eyebrow">Takes</p>
+              <h2>Outputs</h2>
+            </div>
+            <button class="icon-button faq-button" data-help="outputs" data-tip="Output management tips" type="button">?</button>
+            <div class="tool-row">
+              <button class="reactive-button" id="revealOutputsButton" type="button" data-tip="Open the output folder in Finder on Big Mac">Open Big Mac output folder</button>
+              <button class="reactive-button" id="openRawButton" type="button" data-tip="Open the underlying Chatterbox Gradio page">Open raw Chatterbox</button>
+            </div>
+          </div>
+          <div id="takesList" class="takes-list empty-state">
+            <p>No takes yet. Save or record a voice, generate, then the output lands here.</p>
+          </div>
+
+          <details class="diagnostics-fold">
+            <summary data-tip="Expand logs and health JSON only when needed">Diagnostics and logs</summary>
+            <button class="reactive-button" id="logsButton" type="button" data-tip="Show launcher and Big Mac server log tails">Tail logs</button>
+            <pre id="diagnosticsText">Checking systems...</pre>
+          </details>
+        </section>
+      </main>
+
+      <section id="audioDramaView" class="app-view glass-card glow-panel hidden" aria-labelledby="audioDramaTitle">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Audio Drama</p>
+            <h2 id="audioDramaTitle">Production workflow</h2>
+          </div>
+          <button class="reactive-button" id="refreshDramaButton" type="button">Refresh</button>
+        </div>
+        <div class="drama-grid">
+          <aside class="drama-rail">
+            <form id="projectForm" class="stacked-form">
+              <h3>Project</h3>
+              <label><span>Name</span><input id="projectName" placeholder="Orbital Tomb"></label>
+              <button class="reactive-button primary" type="submit">Create Project</button>
+            </form>
+            <label><span>Current project</span><select id="projectSelect"></select></label>
+            <form id="characterForm" class="stacked-form">
+              <h3>Character</h3>
+              <label><span>Name</span><input id="characterName" placeholder="Tiger"></label>
+              <label><span>Reference voice</span><select id="characterVoice"></select></label>
+              <label><span>Delivery notes</span><input id="characterDelivery" placeholder="low, surgical, calm"></label>
+              <button class="reactive-button" type="submit">Create Character</button>
+            </form>
+            <div id="dramaCharacters" class="compact-list"></div>
+          </aside>
+          <div class="drama-workspace">
+            <section class="workflow-panel">
+              <div class="step-label">Step 1</div>
+              <h3>Paste Raw Script</h3>
+              <p class="meta-line">Raw script is preserved separately from parsed scene data.</p>
+              <textarea id="rawScriptText">TIGER: [quietly] You built a station and called it permanence.
+NARRATOR: The corridor lights failed one at a time.
+UNKNOWN: Is anyone still there?</textarea>
+            </section>
+            <section class="workflow-panel">
+              <div class="step-label">Step 2</div>
+              <h3>Parse with BigMac Ollama</h3>
+              <p class="meta-line" id="parserTunnelCopy">The parser uses the MacBook-side tunnel to BigMac Ollama. This is not MacBook-local inference.</p>
+              <label class="wide-field">
+                <span>Parser model</span>
+                <select id="parserModelSelect"><option value="auto">Auto / best available</option></select>
+              </label>
+              <p class="meta-line" id="parserModelStatus">Parser model list loads from BigMac Ollama through the tunnel.</p>
+              <div class="tool-row">
+                <button class="reactive-button primary" id="parseScriptButton" type="button">Parse with BigMac Ollama</button>
+                <button class="reactive-button" id="saveSceneButton" type="button">Save Scene</button>
+              </div>
+              <pre id="parserOutput">Parser output will appear here.</pre>
+            </section>
+            <section class="workflow-panel">
+              <div class="step-label">Step 3</div>
+              <h3>Review/Edit Structured Lines</h3>
+              <div id="sceneLineEditor" class="line-editor empty-state">No parsed lines yet.</div>
+            </section>
+            <section class="workflow-panel">
+              <div class="step-label">Step 4</div>
+              <h3>Render and Select Takes</h3>
+              <p class="meta-line">Render line requires an assigned reference voice. Scene preview assembly is deferred.</p>
+              <div class="tool-row">
+                <button class="reactive-button" id="renderFirstLineButton" type="button">Render First Line</button>
+                <button class="reactive-button" id="refreshSelectedButton" type="button">Refresh Selected Takes</button>
+              </div>
+              <pre id="dramaStatus">Idle.</pre>
+            </section>
+          </div>
+        </div>
+      </section>
+
+      <section id="takesView" class="app-view glass-card glow-panel hidden" aria-labelledby="takesScreenTitle">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Takes</p>
+            <h2 id="takesScreenTitle">Review outputs</h2>
+          </div>
+        </div>
+        <div id="takesScreenList" class="takes-list empty-state"></div>
+      </section>
+
+      <section id="voicesView" class="app-view glass-card glow-panel hidden" aria-labelledby="voicesScreenTitle">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Voices</p>
+            <h2 id="voicesScreenTitle">Reference voice library</h2>
+          </div>
+        </div>
+        <div id="voicesScreenList" class="voice-list empty-state"></div>
+      </section>
+
+      <section id="healthView" class="app-view glass-card glow-panel hidden" aria-labelledby="healthScreenTitle">
+        <div class="section-head">
+          <div>
+            <p class="eyebrow">Health</p>
+            <h2 id="healthScreenTitle">Subsystem checks</h2>
+          </div>
+          <button class="reactive-button" id="healthScreenRefresh" type="button">Refresh Health</button>
+        </div>
+        <p class="meta-line warning">Health checks do not prove generation works. A real generation test is required.</p>
+        <p class="meta-line">The parser uses the MacBook-side tunnel to BigMac Ollama. This is not MacBook-local inference.</p>
+        <pre id="healthScreenDetails">Checking systems...</pre>
+      </section>
+    </div>
+
+    <dialog id="helpModal" class="help-modal">
+      <div class="modal-head">
+        <h2 id="helpTitle">Help</h2>
+        <button class="icon-button" id="helpClose" type="button" data-tip="Close help">×</button>
+      </div>
+      <div id="helpBody" class="help-body"></div>
+    </dialog>
+
+    <script src="/app.js" type="module"></script>
+  </body>
+</html>
