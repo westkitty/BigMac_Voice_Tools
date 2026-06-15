@@ -1,7 +1,7 @@
 import { api } from "./modules/api.js";
 import { $, setMessage, state } from "./modules/state.js";
 import { loadHealth, loadLogs } from "./modules/healthView.js";
-import { loadDrama, createCharacter, createProject, parseRawScript, refreshSelectedTakes, renderFirstLine, saveParsedScene } from "./modules/audioDramaView.js";
+import { loadDrama, createCharacter, createProject, parseRawScript, refreshSelectedTakes, renderFirstLine, saveParsedScene, handleRenderReadyLines } from "./modules/audioDramaView.js";
 import { openHelp, openStudioWindow, setView } from "./modules/navigation.js";
 import {
   formatDocumentFile,
@@ -98,6 +98,7 @@ function bindEvents() {
   });
   $("parseScriptButton").addEventListener("click", parseRawScript);
   $("saveSceneButton").addEventListener("click", saveParsedScene);
+  $("renderReadyLinesButton").addEventListener("click", handleRenderReadyLines);
   $("renderFirstLineButton").addEventListener("click", renderFirstLine);
   $("refreshSelectedButton").addEventListener("click", refreshSelectedTakes);
   $("healthScreenRefresh").addEventListener("click", loadHealth);

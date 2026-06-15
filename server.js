@@ -79,6 +79,122 @@ async function serveStatic(req, res) {
     .pipe(res);
 }
 
+async function validateRenderLineRequest(body, store) {
+  if (!body.sceneId) {
+    return { ok: false, error: "sceneId is required.", code: "MISSING_SCENE", status: 400 };
+  }
+  const scene = await store.getScene(body.sceneId);
+  if (!scene) {
+    return { ok: false, error: "Scene was not found.", code: "MISSING_SCENE", status: 404 };
+  }
+
+  const project = await store.getProject(scene.projectId);
+  if (!project) {
+    return { ok: false, error: "Project was not found.", code: "MISSING_PROJECT", status: 404 };
+  }
+
+  if (!body.lineId) {
+    return { ok: false, error: "lineId is required.", code: "MISSING_LINE", status: 400 };
+  }
+  const line = scene.lines.find((item) => item.id === body.lineId);
+  if (!line) {
+    return { ok: false, error: "Scene line was not found.", code: "MISSING_LINE", status: 404 };
+  }
+
+  if (!line.speaker) {
+    return { ok: false, error: "Line speaker is required.", code: "MISSING_SPEAKER", status: 400 };
+  }
+
+  const textToRender = typeof body.text === "string" ? body.text : line.text;
+  if (!textToRender || !textToRender.trim()) {
+    return { ok: false, error: "Line text is empty.", code: "EMPTY_LINE_TEXT", status: 400 };
+  }
+
+  const takeCountParam = body.takes || line.takes || 1;
+  const takeCount = Number(takeCountParam);
+  if (isNaN(takeCount) || takeCount < 1 || takeCount > 10 || !Number.isInteger(takeCount)) {
+    return { ok: false, error: "Take count must be between 1 and 10.", code: "INVALID_TAKE_COUNT", status: 400 };
+  }
+
+  const characters = await store.listCharacters(scene.projectId);
+  const character = characters.find((item) => item.id === (body.characterId || line.characterId) || item.name.toLowerCase() === line.speaker.toLowerCase());
+  
+  if (!character) {
+    if (line.speaker.toUpperCase() === "UNKNOWN") {
+      return { ok: false, error: "Speaker UNKNOWN is not mapped to a character. Map it before rendering.", code: "UNKNOWN_SPEAKER", status: 400 };
+    }
+    return { ok: false, error: `Speaker ${line.speaker} is not mapped to a character.`, code: "MISSING_CHARACTER", status: 404 };
+  }
+
+  const voiceId = body.voiceId || character.voiceId || line.voiceId;
+  if (!voiceId) {
+    return { ok: false, error: `Character ${character.name} has no assigned reference voice.`, code: "MISSING_VOICE", status: 400 };
+  }
+  const voice = await store.getVoice(voiceId);
+  if (!voice) {
+    return { ok: false, error: `Assigned voice for speaker ${line.speaker} was not found.`, code: "VOICE_NOT_FOUND", status: 404 };
+  }
+
+  const engine = body.engine || character.preferredEngine || "chatterbox";
+  const engineMeta = listEngines().find(e => e.id === engine);
+  if (!engineMeta || !engineMeta.configured) {
+    return { ok: false, error: `Engine "${engine}" is not configured yet.`, code: "ENGINE_NOT_CONFIGURED", status: 501 };
+  }
+
+  return {
+    ok: true,
+    scene,
+    project,
+    line,
+    character,
+    voice,
+    engine,
+    takeCount,
+    textToRender
+  };
+}
+
+async function renderValidatedLine(validation, body, store, remoteConfig) {
+  const { scene, line, character, voice, engine, takeCount, textToRender } = validation;
+  const takes = [];
+  for (let index = 0; index < takeCount; index += 1) {
+    const result = await generateTake({
+      engine,
+      voice,
+      text: textToRender,
+      model: body.model,
+      exaggeration: body.exaggeration,
+      cfgWeight: body.cfgWeight
+    });
+    
+    // Output path allowlist check
+    if (!isAllowedAudioPath(result.remotePath, remoteConfig)) {
+      throw { status: 403, message: "Audio path is outside the Chatterbox output directory.", code: "OUTPUT_PATH_NOT_ALLOWED" };
+    }
+
+    await store.markVoiceUsed(voice.id);
+    takes.push(await store.saveTake({
+      projectId: scene.projectId,
+      sceneId: scene.id,
+      lineId: line.id,
+      speaker: line.speaker,
+      characterId: character.id || "",
+      engine,
+      takeNumber: index + 1,
+      text: textToRender,
+      sourceText: textToRender,
+      emotion: line.emotion,
+      pace: line.pace,
+      deliveryCue: line.deliveryCue,
+      voiceId: voice.id,
+      model: body.model || result.metadata.model || "Standard",
+      settings: { exaggeration: Number(body.exaggeration || 0.5), cfgWeight: Number(body.cfgWeight || 0.5) },
+      outputPath: result.remotePath
+    }));
+  }
+  return takes;
+}
+
 async function route(req, res) {
   const url = new URL(req.url, `http://${host}:${port}`);
   try {
@@ -189,157 +305,117 @@ async function route(req, res) {
     if (url.pathname === "/api/scenes/render-line" && req.method === "POST") {
       try {
         const body = await readBody(req);
-        
-        // Validate Scene existence
+        const validation = await validateRenderLineRequest(body, store);
+        if (!validation.ok) {
+          res.writeHead(validation.status, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: validation.error, code: validation.code }) + "\n");
+          return;
+        }
+
+        const takes = await renderValidatedLine(validation, body, store, remoteConfig);
+        sendJson(res, 201, { takes });
+      } catch (err) {
+        if (err.status) {
+          res.writeHead(err.status, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: err.message || err.error, code: err.code }) + "\n");
+        } else {
+          res.writeHead(500, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: `Generation failed: ${err.message || err}`, code: "GENERATION_FAILED" }) + "\n");
+        }
+      }
+      return;
+    }
+    if (url.pathname === "/api/scenes/render" && req.method === "POST") {
+      try {
+        const body = await readBody(req);
+        if (!body.projectId) {
+          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
+          res.end(JSON.stringify({ ok: false, error: "projectId is required.", code: "MISSING_PROJECT" }) + "\n");
+          return;
+        }
         if (!body.sceneId) {
           res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
           res.end(JSON.stringify({ ok: false, error: "sceneId is required.", code: "MISSING_SCENE" }) + "\n");
           return;
         }
-        const scene = await store.getScene(body.sceneId);
-        if (!scene) {
-          res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: false, error: "Scene was not found.", code: "MISSING_SCENE" }) + "\n");
-          return;
-        }
 
-        // Validate Project existence
-        const project = await store.getProject(scene.projectId);
+        const project = await store.getProject(body.projectId);
         if (!project) {
           res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
           res.end(JSON.stringify({ ok: false, error: "Project was not found.", code: "MISSING_PROJECT" }) + "\n");
           return;
         }
 
-        // Validate Line existence
-        if (!body.lineId) {
-          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: false, error: "lineId is required.", code: "MISSING_LINE" }) + "\n");
-          return;
-        }
-        const line = scene.lines.find((item) => item.id === body.lineId);
-        if (!line) {
+        const scene = await store.getScene(body.sceneId);
+        if (!scene || scene.projectId !== body.projectId) {
           res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: false, error: "Scene line was not found.", code: "MISSING_LINE" }) + "\n");
+          res.end(JSON.stringify({ ok: false, error: "Scene was not found in project.", code: "MISSING_SCENE" }) + "\n");
           return;
         }
 
-        // Validate Speaker existence
-        if (!line.speaker) {
-          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: false, error: "Line speaker is required.", code: "MISSING_SPEAKER" }) + "\n");
-          return;
-        }
+        const lineIds = Array.isArray(body.lineIds) ? body.lineIds : scene.lines.map((l) => l.id);
+        const candidateLines = scene.lines.filter((l) => lineIds.includes(l.id));
 
-        // Validate Line Text is non-empty
-        const textToRender = typeof body.text === "string" ? body.text : line.text;
-        if (!textToRender || !textToRender.trim()) {
-          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: false, error: "Line text is empty.", code: "EMPTY_LINE_TEXT" }) + "\n");
-          return;
-        }
+        const results = [];
+        let renderedCount = 0;
+        let skippedCount = 0;
+        let failedCount = 0;
 
-        // Validate Take Count
-        const takeCountParam = body.takes || line.takes || 1;
-        const takeCount = Number(takeCountParam);
-        if (isNaN(takeCount) || takeCount < 1 || takeCount > 10 || !Number.isInteger(takeCount)) {
-          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: false, error: "Take count must be between 1 and 10.", code: "INVALID_TAKE_COUNT" }) + "\n");
-          return;
-        }
-
-        // Resolve Character
-        const characters = await store.listCharacters(scene.projectId);
-        const character = characters.find((item) => item.id === (body.characterId || line.characterId) || item.name.toLowerCase() === line.speaker.toLowerCase());
-        
-        if (!character) {
-          if (line.speaker.toUpperCase() === "UNKNOWN") {
-            res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
-            res.end(JSON.stringify({ ok: false, error: "Speaker UNKNOWN is not mapped to a character. Map it before rendering.", code: "UNKNOWN_SPEAKER" }) + "\n");
-            return;
-          }
-          res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: false, error: `Speaker ${line.speaker} is not mapped to a character.`, code: "MISSING_CHARACTER" }) + "\n");
-          return;
-        }
-
-        // Resolve Voice
-        const voiceId = body.voiceId || character.voiceId || line.voiceId;
-        if (!voiceId) {
-          res.writeHead(400, { "content-type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: false, error: `Character ${character.name} has no assigned reference voice.`, code: "MISSING_VOICE" }) + "\n");
-          return;
-        }
-        const voice = await store.getVoice(voiceId);
-        if (!voice) {
-          res.writeHead(404, { "content-type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: false, error: `Assigned voice for speaker ${line.speaker} was not found.`, code: "VOICE_NOT_FOUND" }) + "\n");
-          return;
-        }
-
-        // Validate Engine is configured
-        const engine = body.engine || character.preferredEngine || "chatterbox";
-        const engineMeta = listEngines().find(e => e.id === engine);
-        if (!engineMeta || !engineMeta.configured) {
-          res.writeHead(501, { "content-type": "application/json; charset=utf-8" });
-          res.end(JSON.stringify({ ok: false, error: `Engine "${engine}" is not configured yet.`, code: "ENGINE_NOT_CONFIGURED" }) + "\n");
-          return;
-        }
-
-        // Perform Generation
-        const takes = [];
-        for (let index = 0; index < takeCount; index += 1) {
-          let result;
-          try {
-            result = await generateTake({
-              engine,
-              voice,
-              text: textToRender,
-              model: body.model,
-              exaggeration: body.exaggeration,
-              cfgWeight: body.cfgWeight
-            });
-          } catch (genError) {
-            res.writeHead(500, { "content-type": "application/json; charset=utf-8" });
-            res.end(JSON.stringify({ ok: false, error: `Generation failed: ${genError.message || genError}`, code: "GENERATION_FAILED" }) + "\n");
-            return;
-          }
-
-          // Validate output path remains allowlisted BEFORE saving or returning
-          if (!isAllowedAudioPath(result.remotePath, remoteConfig)) {
-            res.writeHead(403, { "content-type": "application/json; charset=utf-8" });
-            res.end(JSON.stringify({ ok: false, error: "Audio path is outside the Chatterbox output directory.", code: "OUTPUT_PATH_NOT_ALLOWED" }) + "\n");
-            return;
-          }
-
-          await store.markVoiceUsed(voice.id);
-          takes.push(await store.saveTake({
-            projectId: scene.projectId,
-            sceneId: scene.id,
+        for (const line of candidateLines) {
+          const renderLineBody = {
+            projectId: body.projectId,
+            sceneId: body.sceneId,
             lineId: line.id,
-            speaker: line.speaker,
-            characterId: character.id || "",
-            engine,
-            takeNumber: index + 1,
-            text: textToRender,
-            sourceText: textToRender,
-            emotion: line.emotion,
-            pace: line.pace,
-            deliveryCue: line.deliveryCue,
-            voiceId: voice.id,
-            model: body.model || result.metadata.model || "Standard",
-            settings: { exaggeration: Number(body.exaggeration || 0.5), cfgWeight: Number(body.cfgWeight || 0.5) },
-            outputPath: result.remotePath
-          }));
+            takes: body.takes || line.takes
+          };
+
+          const validation = await validateRenderLineRequest(renderLineBody, store);
+          if (!validation.ok) {
+            results.push({
+              lineId: line.id,
+              ok: false,
+              skipped: true,
+              code: validation.code,
+              error: validation.error
+            });
+            skippedCount += 1;
+            continue;
+          }
+
+          try {
+            const takes = await renderValidatedLine(validation, renderLineBody, store, remoteConfig);
+            results.push({
+              lineId: line.id,
+              ok: true,
+              takes
+            });
+            renderedCount += 1;
+          } catch (err) {
+            results.push({
+              lineId: line.id,
+              ok: false,
+              code: err.code || "GENERATION_FAILED",
+              error: err.message || String(err)
+            });
+            failedCount += 1;
+          }
         }
-        sendJson(res, 201, { takes });
+
+        sendJson(res, 200, {
+          ok: true,
+          projectId: body.projectId,
+          sceneId: body.sceneId,
+          summary: {
+            requested: candidateLines.length,
+            rendered: renderedCount,
+            skipped: skippedCount,
+            failed: failedCount
+          },
+          results
+        });
       } catch (err) {
         sendError(res, err, 500);
       }
-      return;
-    }
-    if (url.pathname === "/api/scenes/render" && req.method === "POST") {
-      sendJson(res, 501, { error: "Render scene is deferred until render-line is proven for this project." });
       return;
     }
     if (url.pathname === "/api/scenes/select-take" && req.method === "POST") {

@@ -4,6 +4,7 @@ import { loadTakes } from "./voiceLabView.js";
 import { renderSpeakerMapping, getSpeakerStatus, propagateMappingsToLines } from "./audioDrama/speakerMapping.js";
 import { preflightRenderLine } from "./audioDrama/renderPreflight.js";
 import { renderLineTakes } from "./audioDrama/takeReview.js";
+import { handleRenderReadyLines } from "./audioDrama/sceneRender.js";
 
 export function renderCharacterVoiceOptions() {
   const select = $("characterVoice");
@@ -305,3 +306,5 @@ export async function refreshSelectedTakes() {
   if (!projectId || !sceneId) return setDramaStatus("Choose a project and save a scene first.");
   setDramaStatus(await api(`/api/scenes/selected?projectId=${encodeURIComponent(projectId)}&sceneId=${encodeURIComponent(sceneId)}`));
 }
+
+export { handleRenderReadyLines };

@@ -253,11 +253,19 @@ UNKNOWN: Is anyone still there?</textarea>
             <section class="workflow-panel">
               <div class="step-label">Step 5</div>
               <h3>Render and Select Takes</h3>
-              <p class="meta-line">Render line requires an assigned reference voice. Scene preview assembly is deferred.</p>
+              <p class="meta-line">Render lines sequentially using their mapped reference voices. Unmapped speakers (e.g. UNKNOWN) are skipped.</p>
+              <div class="field-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
+                <label for="sceneTakesInput" style="display: inline-flex; align-items: center; gap: 4px; margin: 0; white-space: nowrap;">
+                  <span>Takes per line:</span>
+                </label>
+                <input type="number" id="sceneTakesInput" min="1" max="10" value="2" style="width: 70px; padding: 6px 10px;">
+              </div>
               <div class="tool-row">
+                <button class="reactive-button primary" id="renderReadyLinesButton" type="button">Render Ready Lines</button>
                 <button class="reactive-button" id="renderFirstLineButton" type="button">Render First Line</button>
                 <button class="reactive-button" id="refreshSelectedButton" type="button">Refresh Selected Takes</button>
               </div>
+              <div id="sceneRenderSummary" class="scene-render-summary hidden" style="margin-top: 12px;"></div>
               <pre id="dramaStatus">Idle.</pre>
             </section>
           </div>

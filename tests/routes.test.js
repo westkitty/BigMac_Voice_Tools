@@ -91,14 +91,66 @@ test("named scenes selected route is not swallowed by generic scene-id route", a
   });
 });
 
-test("named scene render endpoint returns explicit deferred response", async () => {
+test("named scene render endpoint processes candidates and summaries", async () => {
   await withServer(async (baseUrl) => {
-    const result = await requestJson(baseUrl, "/api/scenes/render", {
+    // 1. Missing projectId/sceneId
+    const resNoProject = await requestJson(baseUrl, "/api/scenes/render", {
       method: "POST",
       body: JSON.stringify({ sceneId: "route_scene" })
     });
-    assert.equal(result.response.status, 501);
-    assert.match(result.body.error, /deferred/i);
+    assert.equal(resNoProject.response.status, 400);
+    assert.equal(resNoProject.body.code, "MISSING_PROJECT");
+
+    const resNoScene = await requestJson(baseUrl, "/api/scenes/render", {
+      method: "POST",
+      body: JSON.stringify({ projectId: "route_project" })
+    });
+    assert.equal(resNoScene.response.status, 400);
+    assert.equal(resNoScene.body.code, "MISSING_SCENE");
+
+    // Create project & scene
+    await requestJson(baseUrl, "/api/projects", {
+      method: "POST",
+      body: JSON.stringify({ id: "p1", name: "Project 1" })
+    });
+
+    await requestJson(baseUrl, "/api/scenes", {
+      method: "POST",
+      body: JSON.stringify({
+        id: "s1",
+        projectId: "p1",
+        title: "Scene 1",
+        lines: [
+          { id: "L001", type: "dialogue", speaker: "UNKNOWN", text: "Line 1 text.", takes: 1 },
+          { id: "L002", type: "dialogue", speaker: "TIGER", text: "", takes: 1 }
+        ]
+      })
+    });
+
+    // Post to /api/scenes/render and assert it returns status 200 with skipped/failed details
+    const resRender = await requestJson(baseUrl, "/api/scenes/render", {
+      method: "POST",
+      body: JSON.stringify({
+        projectId: "p1",
+        sceneId: "s1",
+        lineIds: ["L001", "L002"]
+      })
+    });
+
+    assert.equal(resRender.response.status, 200);
+    assert.equal(resRender.body.ok, true);
+    assert.equal(resRender.body.summary.requested, 2);
+    assert.equal(resRender.body.summary.rendered, 0);
+    assert.equal(resRender.body.summary.skipped, 2);
+    assert.equal(resRender.body.summary.failed, 0);
+
+    const l001Result = resRender.body.results.find(r => r.lineId === "L001");
+    assert.equal(l001Result.skipped, true);
+    assert.equal(l001Result.code, "UNKNOWN_SPEAKER");
+
+    const l002Result = resRender.body.results.find(r => r.lineId === "L002");
+    assert.equal(l002Result.skipped, true);
+    assert.equal(l002Result.code, "EMPTY_LINE_TEXT");
   });
 });
 
