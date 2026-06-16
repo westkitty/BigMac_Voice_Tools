@@ -1,8 +1,14 @@
 import { $, helpContent, state } from "./state.js";
 
-// Secondary surfaces render as pop-out drawers (Popover API, top layer) instead
-// of full-page swaps. Workspaces remain in-place stages.
-export const DRAWER_VIEWS = new Set(["takesView", "voicesView", "healthView"]);
+// Command Center is the always-present home stage. Every other section pops
+// out of the left rail as a drawer (Popover API, top layer — never clipped).
+export const DRAWER_VIEWS = new Set([
+  "voiceLabView",
+  "audioDramaView",
+  "takesView",
+  "voicesView",
+  "healthView"
+]);
 
 function updateNav(activeId, { drawerOpen = false } = {}) {
   document.querySelectorAll("[data-view-target]").forEach((button) => {
@@ -67,6 +73,9 @@ export function initDrawers() {
         const trigger = document.querySelector(`[data-view-target="${id}"]`);
         trigger?.classList.remove("active");
         trigger?.setAttribute?.("aria-current", "false");
+        // If nothing else is open, return focus highlight to the home stage.
+        const anyOpen = [...DRAWER_VIEWS].some((other) => $(other)?.matches?.(":popover-open"));
+        if (!anyOpen) updateNav(state.activeView);
       }
     });
   });
