@@ -131,9 +131,11 @@ export function renderWorkflowStatus() {
   document.querySelectorAll("[data-drama-step]").forEach((button) => {
     const step = model.steps.find((item) => item.id === button.dataset.dramaStep);
     if (!step) return;
+    const isActive = state.activeDramaStep === step.id;
     button.classList.toggle("ok", step.ok);
     button.classList.toggle("warn", Boolean(step.warn));
-    button.classList.toggle("active", state.activeDramaStep === step.id);
+    button.classList.toggle("active", isActive);
+    button.setAttribute("aria-current", isActive ? "step" : "false");
   });
   const inspector = $("inspectorContent");
   if (inspector) {

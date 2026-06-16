@@ -82,7 +82,7 @@
               <p class="eyebrow">Script</p>
               <h2>Text to generate</h2>
             </div>
-            <button class="icon-button faq-button" data-help="script" data-tip="Script formatting tips" type="button">?</button>
+            <button class="icon-button faq-button" data-help="script" data-tip="Script formatting tips" aria-label="Script formatting help" type="button">?</button>
             <div class="mode-toggle" role="group" aria-label="Mode">
               <button class="chip active" id="simpleMode" type="button" data-tip="Hide advanced model controls">Simple</button>
               <button class="chip" id="advancedMode" type="button" data-tip="Show model and delivery controls">Advanced</button>
@@ -118,13 +118,13 @@
               <p class="eyebrow">Voice</p>
               <h2>Voice capture</h2>
             </div>
-            <button class="icon-button faq-button" data-help="voice" data-tip="Voice capture tips" type="button">?</button>
-            <button class="icon-button" id="refreshButton" type="button" data-tip="Refresh Big Mac, tunnel, and wrapper status">↻</button>
+            <button class="icon-button faq-button" data-help="voice" data-tip="Voice capture tips" aria-label="Voice capture help" type="button">?</button>
+            <button class="icon-button" id="refreshButton" type="button" data-tip="Refresh Big Mac, tunnel, and wrapper status" aria-label="Refresh stack status">↻</button>
           </div>
 
           <div class="capture-tabs" role="tablist" aria-label="Voice capture mode">
-            <button class="chip active" id="uploadTab" type="button" role="tab" aria-selected="true">Upload</button>
-            <button class="chip" id="recordTab" type="button" role="tab" aria-selected="false">Record</button>
+            <button class="chip active" id="uploadTab" type="button" role="tab" aria-selected="true" aria-controls="uploadPane">Upload</button>
+            <button class="chip" id="recordTab" type="button" role="tab" aria-selected="false" aria-controls="recordPane">Record</button>
           </div>
 
           <form id="voiceForm" class="voice-form">
@@ -140,11 +140,11 @@
               <span>Notes</span>
               <input id="voiceNotes" placeholder="Room, mic, style, project">
             </label>
-            <label class="file-drop" id="uploadPane">
+            <label class="file-drop capture-pane" id="uploadPane" role="tabpanel" aria-labelledby="uploadTab">
               <span>Reference WAV/MP3/M4A</span>
               <input id="voiceFile" type="file" accept="audio/*" required>
             </label>
-            <div class="record-pane hidden" id="recordPane">
+            <div class="record-pane capture-pane hidden" id="recordPane" role="tabpanel" aria-labelledby="recordTab">
               <div class="record-controls">
                 <button class="reactive-button primary" id="recordStart" type="button">Start recording</button>
                 <button class="reactive-button" id="recordStop" type="button" disabled>Stop</button>
@@ -163,7 +163,7 @@
                 <p class="eyebrow">Characters</p>
                 <h2>Conversation voices</h2>
               </div>
-              <button class="icon-button faq-button" data-help="characters" data-tip="Conversation setup tips" type="button">?</button>
+              <button class="icon-button faq-button" data-help="characters" data-tip="Conversation setup tips" aria-label="Conversation setup help" type="button">?</button>
             </div>
             <label>
               <span>Speaker count</span>
@@ -219,7 +219,7 @@
               <p class="eyebrow">Takes</p>
               <h2>Outputs</h2>
             </div>
-            <button class="icon-button faq-button" data-help="outputs" data-tip="Output management tips" type="button">?</button>
+            <button class="icon-button faq-button" data-help="outputs" data-tip="Output management tips" aria-label="Output management help" type="button">?</button>
             <div class="tool-row">
               <button class="reactive-button" id="revealOutputsButton" type="button" data-tip="Open the output folder in Finder on Big Mac">Open Big Mac output folder</button>
               <button class="reactive-button" id="openRawButton" type="button" data-tip="Open the underlying Chatterbox Gradio page">Open raw Chatterbox</button>
@@ -269,16 +269,16 @@
               <label><span>Name</span><input id="characterName" placeholder="Tiger"></label>
               <label><span>Reference voice</span><select id="characterVoice"></select></label>
               <label><span>Delivery notes</span><input id="characterDelivery" placeholder="low, surgical, calm"></label>
-              <details class="character-defaults-fold" style="margin-top: 8px; margin-bottom: 8px; border: 1px solid rgba(255, 255, 255, 0.08); border-radius: 8px; padding: 6px 10px; background: rgba(2, 6, 12, 0.2);">
-                <summary style="cursor: pointer; font-size: 0.78rem; font-weight: 600; color: var(--muted); user-select: none;">Speech Defaults</summary>
-                <div class="field-grid" style="display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 8px;">
-                  <label style="font-size: 0.72rem;"><span>Exaggeration</span><input type="number" step="0.05" id="charExaggeration" placeholder="0.5 (Active)" style="padding: 4px 8px; font-size: 0.78rem;"></label>
-                  <label style="font-size: 0.72rem;"><span>CFG Weight</span><input type="number" step="0.05" id="charCfgWeight" placeholder="0.5 (Active)" style="padding: 4px 8px; font-size: 0.78rem;"></label>
-                  <label style="font-size: 0.72rem;"><span>Speed</span><input type="number" step="0.05" id="charSpeed" placeholder="1.0 (Notes)" style="padding: 4px 8px; font-size: 0.78rem;"></label>
-                  <label style="font-size: 0.72rem;"><span>Temperature</span><input type="number" step="0.05" id="charTemp" placeholder="None (Notes)" style="padding: 4px 8px; font-size: 0.78rem;"></label>
-                  <label style="font-size: 0.72rem; grid-column: span 2;"><span>Seed</span><input type="number" id="charSeed" placeholder="None (Notes)" style="padding: 4px 8px; font-size: 0.78rem;"></label>
+              <details class="character-defaults-fold">
+                <summary>Speech defaults</summary>
+                <div class="character-defaults-grid">
+                  <label><span>Exaggeration</span><input type="number" step="0.05" id="charExaggeration" placeholder="0.5 (active)"></label>
+                  <label><span>CFG weight</span><input type="number" step="0.05" id="charCfgWeight" placeholder="0.5 (active)"></label>
+                  <label><span>Speed</span><input type="number" step="0.05" id="charSpeed" placeholder="1.0 (notes)"></label>
+                  <label><span>Temperature</span><input type="number" step="0.05" id="charTemp" placeholder="None (notes)"></label>
+                  <label class="span-2"><span>Seed</span><input type="number" id="charSeed" placeholder="None (notes)"></label>
                 </div>
-                <p class="meta-line" style="margin-top: 6px; font-size: 0.68rem; color: var(--muted);">Only Standard Chatterbox uses Exaggeration and CFG Weight. Others are saved as notes only.</p>
+                <p class="character-defaults-note">Only Standard Chatterbox uses Exaggeration and CFG weight. Others are saved as notes only.</p>
               </details>
               <button class="reactive-button" type="submit">Create Character</button>
             </form>
@@ -323,11 +323,9 @@ UNKNOWN: Is anyone still there?</textarea>
               <div class="step-label">Step 5</div>
               <h3>Render and Select Takes</h3>
               <p class="meta-line">Render lines sequentially using their mapped reference voices. Unmapped speakers (e.g. UNKNOWN) are skipped.</p>
-              <div class="field-group" style="display: flex; align-items: center; gap: 8px; margin-bottom: 12px;">
-                <label for="sceneTakesInput" style="display: inline-flex; align-items: center; gap: 4px; margin: 0; white-space: nowrap;">
-                  <span>Takes per line:</span>
-                </label>
-                <input type="number" id="sceneTakesInput" min="1" max="10" value="2" style="width: 70px; padding: 6px 10px;">
+              <div class="scene-takes-row">
+                <label for="sceneTakesInput"><span>Takes per line</span></label>
+                <input type="number" id="sceneTakesInput" min="1" max="10" value="2">
               </div>
               <div class="tool-row">
                 <button class="reactive-button primary" id="renderReadyLinesButton" type="button">Render Ready Lines</button>
@@ -336,48 +334,48 @@ UNKNOWN: Is anyone still there?</textarea>
               </div>
               <div id="sceneRenderSummary" class="scene-render-summary hidden" style="margin-top: 12px;"></div>
               
-              <div id="previewAssemblyPanel" class="preview-assembly-panel" data-drama-step-panel="preview" style="margin-top: 16px; padding-top: 16px; border-top: 1px dashed rgba(255, 255, 255, 0.1);">
-                <h4 style="margin: 0 0 6px 0; font-size: 0.95rem; color: var(--foreground);">Scene Preview Assembly</h4>
-                <p class="meta-line" style="margin-bottom: 12px; font-size: 0.72rem; color: var(--muted); line-height: 1.4;">
-                  Preview uses selected takes only; it does not render missing lines. Fades are applied to each selected take before preview assembly. Line pause overrides beat the default gap. Preview assembly runs locally through BigMac; no cloud upload.
+              <div id="previewAssemblyPanel" class="preview-assembly-panel" data-drama-step-panel="preview">
+                <h4 class="preview-assembly-heading">Scene preview assembly</h4>
+                <p class="preview-assembly-note">
+                  Preview uses selected takes only; it does not render missing lines. Fades are applied to each selected take before assembly. Per-line pause overrides beat the default gap. Assembly runs locally through BigMac; no cloud upload.
                 </p>
-                <div class="field-row" style="display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 12px; align-items: flex-end;">
-                  <label for="previewGapInput" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; margin: 0; color: var(--muted);">
-                    <span>Default gap between lines (ms):</span>
-                    <input type="number" id="previewGapInput" min="0" max="3000" value="350" style="width: 160px; padding: 6px 10px;">
+                <div class="preview-field-row">
+                  <label class="preview-field mid" for="previewGapInput">
+                    <span>Default gap between lines (ms)</span>
+                    <input type="number" id="previewGapInput" min="0" max="3000" value="350">
                   </label>
-                  <label for="previewFadeInInput" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; margin: 0; color: var(--muted);">
-                    <span>Fade in per take (ms):</span>
-                    <input type="number" id="previewFadeInInput" min="0" max="500" value="0" style="width: 120px; padding: 6px 10px;">
+                  <label class="preview-field narrow" for="previewFadeInInput">
+                    <span>Fade in per take (ms)</span>
+                    <input type="number" id="previewFadeInInput" min="0" max="500" value="0">
                   </label>
-                  <label for="previewFadeOutInput" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; margin: 0; color: var(--muted);">
-                    <span>Fade out per take (ms):</span>
-                    <input type="number" id="previewFadeOutInput" min="0" max="500" value="0" style="width: 120px; padding: 6px 10px;">
+                  <label class="preview-field narrow" for="previewFadeOutInput">
+                    <span>Fade out per take (ms)</span>
+                    <input type="number" id="previewFadeOutInput" min="0" max="500" value="0">
                   </label>
-                  <label for="previewModeSelect" style="display: flex; flex-direction: column; gap: 4px; font-size: 0.75rem; margin: 0; color: var(--muted); flex-grow: 1;">
-                    <span>Missing takes mode:</span>
-                    <select id="previewModeSelect" style="padding: 6px 10px; width: 100%;">
+                  <label class="preview-field grow" for="previewModeSelect">
+                    <span>Missing takes mode</span>
+                    <select id="previewModeSelect">
                       <option value="skip-missing">Skip lines without selected takes</option>
                       <option value="fail-on-missing">Require every line to have a selected take</option>
                     </select>
                   </label>
                 </div>
                 <div class="tool-row" style="margin-bottom: 12px;">
-                  <button class="reactive-button primary" id="buildScenePreviewButton" type="button">Build Scene Preview</button>
+                  <button class="reactive-button primary" id="buildScenePreviewButton" type="button">Build scene preview</button>
                 </div>
-                <div id="previewAudioContainer" style="margin-bottom: 12px; display: none;">
-                  <audio id="previewAudioPlayer" controls style="width: 100%; border-radius: 4px; background: rgba(0,0,0,0.2);"></audio>
-                  <div id="previewAudioActions" style="margin-top: 8px; display: flex; gap: 8px; flex-wrap: wrap;">
-                    <a id="previewOpenLink" href="#" target="_blank" class="chip" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; padding: 4px 10px;">Open Preview</a>
-                    <a id="previewDownloadLink" href="#" download class="chip" style="text-decoration: none; display: inline-flex; align-items: center; justify-content: center; font-size: 0.75rem; padding: 4px 10px;">Download Preview</a>
-                    <button id="previewCopyPathBtn" type="button" class="chip" style="font-size: 0.75rem; padding: 4px 10px; cursor: pointer;">Copy Preview Path</button>
+                <div id="previewAudioContainer" class="preview-audio-container" hidden>
+                  <audio id="previewAudioPlayer" controls></audio>
+                  <div id="previewAudioActions" class="preview-audio-actions">
+                    <a id="previewOpenLink" href="#" target="_blank" rel="noopener" class="chip">Open preview</a>
+                    <a id="previewDownloadLink" href="#" download class="chip">Download preview</a>
+                    <button id="previewCopyPathBtn" type="button" class="chip">Copy preview path</button>
                   </div>
                 </div>
-                <div id="previewAssemblySummary" class="preview-assembly-summary hidden" style="font-size: 0.75rem; color: var(--muted); padding: 8px 12px; border-radius: 6px; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.06); line-height: 1.5;"></div>
-                <div id="latestPreviewsSection" style="margin-top: 16px; border-top: 1px dashed rgba(255, 255, 255, 0.08); padding-top: 12px;">
-                  <h5 style="margin: 0 0 8px 0; font-size: 0.8rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.05em;">Recent Previews</h5>
-                  <div id="latestPreviewsList" style="display: flex; flex-direction: column; gap: 6px; max-height: 150px; overflow-y: auto;">
-                    <div style="font-size: 0.75rem; color: var(--muted); font-style: italic;">No previews generated yet.</div>
+                <div id="previewAssemblySummary" class="preview-assembly-summary hidden"></div>
+                <div id="latestPreviewsSection" class="latest-previews-section">
+                  <h5 class="latest-previews-heading">Recent previews</h5>
+                  <div id="latestPreviewsList" class="latest-previews-list">
+                    <div class="latest-previews-empty">No previews generated yet.</div>
                   </div>
                 </div>
               </div>
@@ -432,7 +430,7 @@ UNKNOWN: Is anyone still there?</textarea>
         <aside class="studio-inspector glow-panel" aria-label="Context inspector">
           <p class="eyebrow">Inspector</p>
           <h2>Current context</h2>
-          <p class="meta-line">Use this panel as the future home for selected project, scene, line, take, and preview details. The current pass keeps working controls in place while establishing the rework shell.</p>
+          <p class="meta-line">A live snapshot of your active project, scene, speaker bindings, and chosen takes. It updates as you work through the Drama Studio.</p>
           <div id="inspectorContent" class="inspector-stack inspector-card">
             <div><strong>Canonical app</strong><span>127.0.0.1:7870</span></div>
             <div><strong>Chatterbox tunnel</strong><span>127.0.0.1:7860</span></div>
@@ -447,8 +445,8 @@ UNKNOWN: Is anyone still there?</textarea>
 
       <section class="activity-drawer glow-panel" aria-label="Activity and status drawer">
         <div>
-          <p class="eyebrow">Activity Drawer</p>
-          <p class="meta-line" id="activityStatusText">Render queue, destructive action feedback, and logs should consolidate here in the next UI pass.</p>
+          <p class="eyebrow">Activity</p>
+          <p class="meta-line" id="activityStatusText">Render progress, action feedback, and the latest errors appear here as you work.</p>
         </div>
         <div class="activity-drawer-actions">
           <button class="reactive-button" data-view-target="takesView" type="button">Review Takes</button>
@@ -457,10 +455,10 @@ UNKNOWN: Is anyone still there?</textarea>
       </section>
     </div>
 
-    <dialog id="helpModal" class="help-modal">
+    <dialog id="helpModal" class="help-modal" aria-labelledby="helpTitle">
       <div class="modal-head">
         <h2 id="helpTitle">Help</h2>
-        <button class="icon-button" id="helpClose" type="button" data-tip="Close help">×</button>
+        <button class="icon-button" id="helpClose" type="button" data-tip="Close help" aria-label="Close help">×</button>
       </div>
       <div id="helpBody" class="help-body"></div>
     </dialog>
