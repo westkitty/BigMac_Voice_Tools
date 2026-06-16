@@ -17,7 +17,33 @@
   --fast: 140ms;
   --slow: 260ms;
   --ease: cubic-bezier(.2, .9, .2, 1);
-  font-family: "Avenir Next", "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
+
+  /* Signal accent — true primary actions get a solid, high-contrast fill */
+  --accent: #64e7ff;
+  --accent-2: #38c8ec;
+  --accent-ink: #021018;
+
+  /* Surface elevation scale — replaces uniform glass with real hierarchy */
+  --surface-1: rgba(255, 255, 255, 0.028);
+  --surface-2: rgba(255, 255, 255, 0.05);
+  --surface-3: rgba(255, 255, 255, 0.08);
+  --line-soft: rgba(166, 219, 255, 0.1);
+  --line-strong: rgba(166, 219, 255, 0.28);
+
+  /* Type voices: characterful sans for display, mono for technical readouts */
+  --font-sans: "Avenir Next", "SF Pro Display", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", "Fira Code", Menlo, monospace;
+
+  /* Modular type scale (1.20 ratio) */
+  --text-xs: 0.72rem;
+  --text-sm: 0.82rem;
+  --text-base: 0.92rem;
+  --text-md: 1.05rem;
+  --text-lg: 1.28rem;
+  --text-xl: 1.6rem;
+  --text-2xl: clamp(1.7rem, 2.6vw, 2.5rem);
+
+  font-family: var(--font-sans);
 }
 
 * {
@@ -98,26 +124,33 @@ p {
 }
 
 h1 {
-  font-size: clamp(1.45rem, 2vw, 2.15rem);
-  letter-spacing: 0;
+  font-size: var(--text-2xl);
+  font-weight: 800;
+  line-height: 1.04;
+  letter-spacing: -0.025em;
 }
 
 h2 {
-  font-size: 1rem;
-  letter-spacing: 0;
+  font-size: var(--text-md);
+  font-weight: 750;
+  line-height: 1.2;
+  letter-spacing: -0.012em;
 }
 
 h3 {
-  font-size: .86rem;
-  color: var(--muted);
+  font-size: var(--text-sm);
+  font-weight: 700;
+  letter-spacing: 0.01em;
+  color: var(--text);
 }
 
 .eyebrow {
-  margin-bottom: 5px;
+  margin-bottom: 6px;
   color: var(--cyan);
-  font-size: .72rem;
-  font-weight: 700;
-  letter-spacing: .12em;
+  font-family: var(--font-mono);
+  font-size: 0.68rem;
+  font-weight: 600;
+  letter-spacing: 0.18em;
   text-transform: uppercase;
 }
 
@@ -354,11 +387,30 @@ select:focus {
 }
 
 .chip.active,
-.reactive-button.primary,
 .voice-card.selected {
   border-color: rgba(100, 231, 255, 0.58);
   background: rgba(100, 231, 255, 0.12);
   box-shadow: 0 0 34px rgba(100, 231, 255, 0.12), inset 0 1px 0 rgba(255, 255, 255, 0.16);
+}
+
+/* True primary actions: solid signal accent, dark ink, unmistakable */
+.reactive-button.primary {
+  border-color: transparent;
+  color: var(--accent-ink);
+  font-weight: 700;
+  background: linear-gradient(135deg, var(--accent), var(--accent-2));
+  box-shadow: 0 8px 24px rgba(56, 200, 236, 0.3), inset 0 1px 0 rgba(255, 255, 255, 0.45);
+}
+
+.reactive-button.primary:hover {
+  transform: translateY(-2px);
+  border-color: transparent;
+  background: linear-gradient(135deg, #84edff, var(--accent));
+  box-shadow: 0 14px 34px rgba(56, 200, 236, 0.42), inset 0 1px 0 rgba(255, 255, 255, 0.55);
+}
+
+.reactive-button.primary:active {
+  transform: translateY(0) scale(.985);
 }
 
 .voice-form {
@@ -1300,21 +1352,24 @@ pre {
 }
 
 .nav-item {
+  position: relative;
   display: grid;
   gap: 3px;
   width: 100%;
   text-align: left;
-  padding: 11px 12px;
-  border: 1px solid rgba(255,255,255,.10);
+  padding: 11px 14px;
+  border: 1px solid rgba(255,255,255,.08);
   border-radius: 14px;
   color: var(--text);
-  background: rgba(255,255,255,.045);
+  background: var(--surface-1);
+  overflow: hidden;
   transition: border-color var(--fast) var(--ease), background var(--fast) var(--ease), transform var(--fast) var(--ease);
 }
 
 .nav-item span {
   font-weight: 800;
-  font-size: .86rem;
+  font-size: .88rem;
+  letter-spacing: -0.01em;
 }
 
 .nav-item small {
@@ -1322,11 +1377,37 @@ pre {
   font-size: .68rem;
 }
 
-.nav-item:hover,
-.nav-item.active {
-  border-color: rgba(100,231,255,.42);
-  background: rgba(100,231,255,.10);
+.nav-item::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  height: 0;
+  width: 3px;
+  border-radius: 0 3px 3px 0;
+  background: var(--accent);
+  transform: translateY(-50%);
+  transition: height var(--fast) var(--ease);
+}
+
+.nav-item:hover {
+  border-color: var(--line-soft);
+  background: var(--surface-2);
   transform: translateX(2px);
+}
+
+.nav-item.active {
+  border-color: rgba(100,231,255,.4);
+  background: rgba(100,231,255,.12);
+  box-shadow: inset 0 1px 0 rgba(255,255,255,.1), 0 6px 20px rgba(56,200,236,.12);
+}
+
+.nav-item.active::before {
+  height: 60%;
+}
+
+.nav-item.active span {
+  color: #cdf6ff;
 }
 
 .sidebar-doctrine {
@@ -1971,4 +2052,132 @@ pre {
   .preview-field.grow { flex: 1 1 100%; }
   .character-defaults-grid { grid-template-columns: 1fr; }
   .character-defaults-grid .span-2 { grid-column: span 1; }
+}
+
+/* ===========================================================
+   Bold visual refresh — "control surface" treatment
+   Adds atmosphere (fine grid texture), a monospace voice for
+   technical readouts, and sharper focal hierarchy. Purely
+   visual; no markup or behavior dependencies.
+   =========================================================== */
+
+/* Faint engineering-grid texture behind the workspace */
+body::before {
+  content: "";
+  position: fixed;
+  inset: 0;
+  z-index: 0;
+  pointer-events: none;
+  background-image:
+    linear-gradient(rgba(166, 219, 255, 0.022) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(166, 219, 255, 0.022) 1px, transparent 1px);
+  background-size: 46px 46px;
+  -webkit-mask-image: radial-gradient(ellipse 90% 55% at 50% -5%, #000 30%, transparent 82%);
+  mask-image: radial-gradient(ellipse 90% 55% at 50% -5%, #000 30%, transparent 82%);
+}
+
+.app-shell {
+  position: relative;
+  z-index: 1;
+}
+
+/* Brand wordmark gets a luminous accent so the topbar reads as a header */
+.brand-lockup h1 {
+  background: linear-gradient(120deg, #ffffff 18%, var(--accent) 130%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+/* Monospace voice for technical / numeric readouts — the cockpit character */
+.studio-metric strong,
+.inspector-kv strong,
+.inspector-stack span,
+.stat-box .stat-val,
+.meta-line strong,
+.preview-count,
+.selected-count-badge,
+.line-card-info .line-badge {
+  font-family: var(--font-mono);
+  font-feature-settings: "tnum" 1;
+  letter-spacing: -0.01em;
+}
+
+.meta-line strong {
+  color: var(--accent);
+}
+
+/* Topbar reads as a true masthead: accent hairline + firmer edge */
+.studio-topbar {
+  border-color: var(--line-soft);
+  border-top: 1px solid rgba(100, 231, 255, 0.35);
+}
+
+/* Section headers earn a small accent tick for scannability */
+.studio-section-header > div > .eyebrow,
+.dashboard-hero .eyebrow {
+  position: relative;
+  padding-left: 14px;
+}
+.studio-section-header > div > .eyebrow::before,
+.dashboard-hero .eyebrow::before {
+  content: "";
+  position: absolute;
+  left: 0;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 8px;
+  height: 8px;
+  border-radius: 2px;
+  background: var(--accent);
+  box-shadow: 0 0 10px rgba(100, 231, 255, 0.6);
+}
+
+/* Hero headline: tighter, more confident */
+.dashboard-hero h2 {
+  letter-spacing: -0.03em;
+  line-height: 1.05;
+}
+
+/* Pipeline chips read as a numbered sequence */
+.pipeline-list {
+  counter-reset: pipe;
+}
+.pipeline-list li {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.pipeline-list li::before {
+  counter-increment: pipe;
+  content: counter(pipe);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 18px;
+  height: 18px;
+  flex-shrink: 0;
+  border-radius: 6px;
+  background: rgba(100, 231, 255, 0.18);
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 0.66rem;
+  font-weight: 700;
+}
+
+/* Quieter secondary surfaces so primary panels lead the eye */
+.workflow-panel {
+  background: var(--surface-1);
+  border-color: var(--line-soft);
+}
+
+/* Status dots get a soft pulse so "online" feels alive (motion-safe) */
+@media (prefers-reduced-motion: no-preference) {
+  .status-dot.ok {
+    animation: dotPulse 2.6s ease-in-out infinite;
+  }
+}
+@keyframes dotPulse {
+  0%, 100% { box-shadow: 0 0 0 3px rgba(125, 255, 168, 0.12); }
+  50% { box-shadow: 0 0 0 5px rgba(125, 255, 168, 0.05); }
 }
