@@ -28,13 +28,16 @@
       <div class="studio-layout">
         <aside class="studio-sidebar glow-panel" aria-label="BigMac VoiceTools navigation">
           <div class="sidebar-section">
-            <p class="eyebrow">Navigate</p>
+            <p class="eyebrow">Workspaces</p>
             <button class="nav-item active" data-view-target="dashboardView" type="button"><span>Command Center</span><small>Health + next action</small></button>
             <button class="nav-item" data-view-target="voiceLabView" type="button"><span>Voice Library</span><small>References + samples</small></button>
             <button class="nav-item" data-view-target="audioDramaView" type="button"><span>Drama Studio</span><small>Script to export</small></button>
-            <button class="nav-item" data-view-target="takesView" type="button"><span>Render Queue / Takes</span><small>Generated audio cleanup</small></button>
-            <button class="nav-item" data-view-target="voicesView" type="button"><span>Voice Index</span><small>All saved voices</small></button>
-            <button class="nav-item" data-view-target="healthView" type="button"><span>System / Logs</span><small>Ports + diagnostics</small></button>
+          </div>
+          <div class="sidebar-section">
+            <p class="eyebrow">Panels</p>
+            <button class="nav-item nav-drawer" data-view-target="takesView" type="button"><span>Render Queue<svg class="nav-glyph" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v10H2z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10 3v10" stroke="currentColor" stroke-width="1.3"/></svg></span><small>Generated takes &amp; cleanup</small></button>
+            <button class="nav-item nav-drawer" data-view-target="voicesView" type="button"><span>Voice Index<svg class="nav-glyph" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v10H2z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10 3v10" stroke="currentColor" stroke-width="1.3"/></svg></span><small>All saved voices</small></button>
+            <button class="nav-item nav-drawer" data-view-target="healthView" type="button"><span>System / Logs<svg class="nav-glyph" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h12v10H2z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M10 3v10" stroke="currentColor" stroke-width="1.3"/></svg></span><small>Ports + diagnostics</small></button>
           </div>
           <div class="sidebar-doctrine">
             <p class="eyebrow">Launch doctrine</p>
@@ -386,35 +389,45 @@ UNKNOWN: Is anyone still there?</textarea>
         </div>
       </section>
 
-      <section id="takesView" class="app-view glass-card glow-panel hidden" aria-labelledby="takesScreenTitle">
-        <div class="section-head">
+      <section id="takesView" class="drawer-view glow-panel" popover="auto" aria-labelledby="takesScreenTitle">
+        <header class="drawer-head">
           <div>
-            <p class="eyebrow">Takes</p>
+            <p class="eyebrow">Render Queue</p>
             <h2 id="takesScreenTitle">Review outputs</h2>
           </div>
+          <button class="icon-button drawer-close" popovertarget="takesView" popovertargetaction="hide" aria-label="Close panel" type="button">✕</button>
+        </header>
+        <div class="drawer-body">
+          <div id="takesScreenList" class="takes-list empty-state"></div>
         </div>
-        <div id="takesScreenList" class="takes-list empty-state"></div>
       </section>
 
-      <section id="voicesView" class="app-view glass-card glow-panel hidden" aria-labelledby="voicesScreenTitle">
-        <div class="section-head">
+      <section id="voicesView" class="drawer-view glow-panel" popover="auto" aria-labelledby="voicesScreenTitle">
+        <header class="drawer-head">
           <div>
             <p class="eyebrow">Voices</p>
             <h2 id="voicesScreenTitle">Reference voice library</h2>
           </div>
+          <button class="icon-button drawer-close" popovertarget="voicesView" popovertargetaction="hide" aria-label="Close panel" type="button">✕</button>
+        </header>
+        <div class="drawer-body">
+          <div id="voicesScreenList" class="voice-list empty-state"></div>
         </div>
-        <div id="voicesScreenList" class="voice-list empty-state"></div>
       </section>
 
-      <section id="healthView" class="app-view glass-card glow-panel hidden" aria-labelledby="healthScreenTitle">
-        <div class="studio-section-header">
+      <section id="healthView" class="drawer-view glow-panel" popover="auto" aria-labelledby="healthScreenTitle">
+        <header class="drawer-head">
           <div>
             <p class="eyebrow">System / Logs</p>
             <h2 id="healthScreenTitle">Launcher, tunnel, and subsystem checks</h2>
-            <p class="meta-line">Normal production use is the Dock launcher or canonical script. Do not use port 7873 unless debugging.</p>
           </div>
-          <button class="reactive-button" id="healthScreenRefresh" type="button">Refresh Health</button>
-        </div>
+          <div class="drawer-head-actions">
+            <button class="reactive-button" id="healthScreenRefresh" type="button">Refresh Health</button>
+            <button class="icon-button drawer-close" popovertarget="healthView" popovertargetaction="hide" aria-label="Close panel" type="button">✕</button>
+          </div>
+        </header>
+        <div class="drawer-body">
+        <p class="meta-line">Normal production use is the Dock launcher or canonical script. Do not use port 7873 unless debugging.</p>
         <div id="systemDoctrineCards" class="status-card-grid compact-system-grid"></div>
         <div class="system-command-panel">
           <p class="eyebrow">Recovery</p>
@@ -424,6 +437,7 @@ UNKNOWN: Is anyone still there?</textarea>
         <p class="meta-line warning">Health checks do not prove generation works. A real generation test is required.</p>
         <p class="meta-line">The parser uses the MacBook-side tunnel to BigMac Ollama. This is not MacBook-local inference.</p>
         <pre id="healthScreenDetails">Checking systems...</pre>
+        </div>
       </section>
         </div>
 

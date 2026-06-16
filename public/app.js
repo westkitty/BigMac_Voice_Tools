@@ -3,7 +3,7 @@ import { $, pushUiError, setMessage, state } from "./modules/state.js";
 import { loadHealth, loadLogs } from "./modules/healthView.js";
 import { loadDashboard, renderWorkflowStatus, setDramaStep } from "./modules/dashboardView.js";
 import { loadDrama, createCharacter, createProject, parseRawScript, refreshSelectedTakes, renderFirstLine, saveParsedScene, handleRenderReadyLines } from "./modules/audioDramaView.js";
-import { copyText, openHelp, openStudioWindow, setView } from "./modules/navigation.js";
+import { copyText, initDrawers, openHelp, openStudioWindow, setView } from "./modules/navigation.js";
 import { initPreviewAssembly } from "./modules/audioDrama/previewAssembly.js";
 import {
   formatDocumentFile,
@@ -243,6 +243,7 @@ function bindEvents() {
     if (event.detail?.viewId === "healthView") await loadHealth().catch((error) => pushUiError("Health", error));
   });
   initPreviewAssembly();
+  initDrawers();
   setDramaStep(state.activeDramaStep);
 }
 
