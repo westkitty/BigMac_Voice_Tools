@@ -213,6 +213,10 @@ function bindEvents() {
   bind("renderFirstLineButton", "click", renderFirstLine);
   bind("refreshSelectedButton", "click", refreshSelectedTakes);
   bind("healthScreenRefresh", "click", loadHealth);
+  bind("copyDiagnosticsButton", "click", () => {
+    copyText($("healthScreenDetails")?.textContent || "", "Diagnostics copied.");
+    setMessage("Diagnostics copied.", "ok");
+  });
   bind("previewToggle", "click", () => {
     state.showPreview = !state.showPreview;
     $("previewToggle").classList.toggle("active", state.showPreview);
@@ -253,6 +257,10 @@ await Promise.all([
   loadVoices().catch((error) => pushUiError("Voices", error)),
   loadTakes().catch((error) => pushUiError("Takes", error))
 ]);
-await loadDrama().catch((error) => pushUiError("Drama", error));
-await loadDashboard().catch((error) => pushUiError("Dashboard", error));
+// Home must not be blocked by the heaviest loader: render the dashboard in
+// parallel with the Drama Studio data so the launchpad is usable immediately.
+await Promise.all([
+  loadDrama().catch((error) => pushUiError("Drama", error)),
+  loadDashboard().catch((error) => pushUiError("Dashboard", error))
+]);
 renderWorkflowStatus();

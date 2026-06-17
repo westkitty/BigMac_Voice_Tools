@@ -27,18 +27,14 @@
 
       <div class="studio-layout">
         <aside class="studio-sidebar glow-panel" aria-label="BigMac VoiceTools navigation">
-          <div class="sidebar-section">
-            <p class="eyebrow">Home</p>
-            <button class="nav-item active" data-view-target="dashboardView" type="button"><span>Command Center</span><small>Health + next action</small></button>
-          </div>
-          <div class="sidebar-section">
-            <p class="eyebrow">Sections</p>
-            <button class="nav-item nav-drawer" data-view-target="voiceLabView" type="button"><span>Voice Library<svg class="nav-glyph" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h7v10H2z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M9 3h5v10H9z" fill="currentColor" opacity="0.35" stroke="currentColor" stroke-width="1.3"/></svg></span><small>References + live capture</small></button>
-            <button class="nav-item nav-drawer" data-view-target="audioDramaView" type="button"><span>Drama Studio<svg class="nav-glyph" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h7v10H2z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M9 3h5v10H9z" fill="currentColor" opacity="0.35" stroke="currentColor" stroke-width="1.3"/></svg></span><small>Script &#8594; export</small></button>
-            <button class="nav-item nav-drawer" data-view-target="takesView" type="button"><span>Render Queue<svg class="nav-glyph" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h7v10H2z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M9 3h5v10H9z" fill="currentColor" opacity="0.35" stroke="currentColor" stroke-width="1.3"/></svg></span><small>Generated takes &amp; cleanup</small></button>
-            <button class="nav-item nav-drawer" data-view-target="voicesView" type="button"><span>Voice Index<svg class="nav-glyph" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h7v10H2z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M9 3h5v10H9z" fill="currentColor" opacity="0.35" stroke="currentColor" stroke-width="1.3"/></svg></span><small>All saved voices</small></button>
-            <button class="nav-item nav-drawer" data-view-target="healthView" type="button"><span>System / Logs<svg class="nav-glyph" viewBox="0 0 16 16" aria-hidden="true"><path d="M2 3h7v10H2z" fill="none" stroke="currentColor" stroke-width="1.3"/><path d="M9 3h5v10H9z" fill="currentColor" opacity="0.35" stroke="currentColor" stroke-width="1.3"/></svg></span><small>Ports + diagnostics</small></button>
-          </div>
+          <nav class="sidebar-section" aria-label="Primary">
+            <button class="nav-item active" data-view-target="dashboardView" type="button"><span>Home</span><small>Status + next action</small></button>
+            <button class="nav-item nav-drawer" data-view-target="audioDramaView" type="button"><span>Script &amp; Render</span><small>Drama Studio pipeline</small></button>
+            <button class="nav-item nav-drawer" data-view-target="voiceLabView" type="button"><span>Voices</span><small>Capture &amp; references</small></button>
+            <button class="nav-item nav-drawer" data-view-target="takesView" type="button"><span>Queue</span><small>Generated takes</small></button>
+            <button class="nav-item nav-drawer" data-view-target="voicesView" type="button"><span>Index</span><small>All saved voices</small></button>
+            <button class="nav-item nav-drawer" data-view-target="healthView" type="button"><span>Diagnostics</span><small>Ports + logs</small></button>
+          </nav>
           <div class="sidebar-doctrine">
             <p class="eyebrow">Launch doctrine</p>
             <p>Use the Dock icon or <code>/Users/andrew/bin/bigmac-voicetools-launch</code>.</p>
@@ -49,32 +45,24 @@
 
         <div class="studio-workspace">
           <section id="dashboardView" class="app-view dashboard-view active-view" aria-labelledby="dashboardTitle">
-            <div class="dashboard-hero glow-panel">
-              <div>
+            <div class="dashboard-hero">
+              <div class="hero-copy">
                 <p class="eyebrow">Command Center</p>
-                <h2 id="dashboardTitle">Start here, then work in the Studio.</h2>
-                <p class="meta-line">This dashboard keeps the fragile local stack visible: wrapper 7870, Chatterbox tunnel 7860, Ollama tunnel 11435, and BigMac SSH.</p>
+                <h2 id="dashboardTitle">Your local production console</h2>
+                <p class="meta-line">Write a script, bind voices, render takes, then export — all on the BigMac backend. Live service status sits in the header and footer.</p>
               </div>
               <div class="dashboard-actions">
                 <button class="reactive-button primary" data-view-target="audioDramaView" type="button">Open Drama Studio</button>
-                <button class="reactive-button" data-view-target="voiceLabView" type="button">Manage Voices</button>
-                <button class="reactive-button" data-view-target="healthView" type="button">System / Logs</button>
+                <button class="reactive-button" data-view-target="voiceLabView" type="button">Voices</button>
+                <button class="reactive-button" data-view-target="healthView" type="button">Diagnostics</button>
               </div>
             </div>
-            <div id="dashboardStatusCards" class="status-card-grid" aria-live="polite"></div>
             <div class="dashboard-grid">
-              <article id="dashboardContinueCard" class="glass-card dashboard-card glow-panel"></article>
-              <article class="glass-card dashboard-card glow-panel">
+              <article id="dashboardContinueCard" class="glass-card dashboard-card"></article>
+              <article class="glass-card dashboard-card">
                 <p class="eyebrow">Recent activity</p>
                 <h3>Latest generated takes</h3>
                 <div id="dashboardActivityList" class="activity-list"></div>
-              </article>
-              <article class="glass-card dashboard-card glow-panel">
-                <p class="eyebrow">Primary workflow</p>
-                <h3>Drama Studio pipeline</h3>
-                <ol class="pipeline-list">
-                  <li>Script</li><li>Characters</li><li>Bind</li><li>Render</li><li>Review</li><li>Preview</li><li>Export</li>
-                </ol>
               </article>
             </div>
           </section>
@@ -445,6 +433,8 @@ UNKNOWN: Is anyone still there?</textarea>
           </div>
         </header>
         <div class="drawer-body">
+        <p class="eyebrow">Services</p>
+        <div id="dashboardStatusCards" class="status-card-grid" aria-live="polite"></div>
         <p class="meta-line">Normal production use is the Dock launcher or canonical script. Do not use port 7873 unless debugging.</p>
         <div id="systemDoctrineCards" class="status-card-grid compact-system-grid"></div>
         <div class="system-command-panel">
@@ -454,6 +444,10 @@ UNKNOWN: Is anyone still there?</textarea>
         </div>
         <p class="meta-line warning">Health checks do not prove generation works. A real generation test is required.</p>
         <p class="meta-line">The parser uses the MacBook-side tunnel to BigMac Ollama. This is not MacBook-local inference.</p>
+        <div class="diagnostics-head">
+          <p class="eyebrow">Raw diagnostics</p>
+          <button class="reactive-button" id="copyDiagnosticsButton" type="button" data-tip="Copy the raw health JSON to the clipboard">Copy diagnostics</button>
+        </div>
         <pre id="healthScreenDetails">Checking systems...</pre>
         </div>
       </section>
@@ -475,16 +469,18 @@ UNKNOWN: Is anyone still there?</textarea>
         </aside>
       </div>
 
-      <section class="activity-drawer glow-panel" aria-label="Activity and status drawer">
-        <div>
-          <p class="eyebrow">Activity</p>
-          <p class="meta-line" id="activityStatusText">Render progress, action feedback, and the latest errors appear here as you work.</p>
+      <footer class="status-footer" aria-label="Local mode and backend status">
+        <div class="footer-modes">
+          <span class="footer-badge">Local-only · No cloud</span>
+          <span class="footer-url" data-tip="Canonical wrapper URL">127.0.0.1:7870</span>
+          <span id="footerBackendStatus" class="footer-pill warn">BigMac · checking</span>
         </div>
-        <div class="activity-drawer-actions">
-          <button class="reactive-button" data-view-target="takesView" type="button">Review Takes</button>
-          <button class="reactive-button" data-view-target="healthView" type="button">Open System Logs</button>
+        <p class="meta-line footer-activity" id="activityStatusText" aria-live="polite">Render progress, action feedback, and the latest errors appear here as you work.</p>
+        <div class="footer-actions">
+          <button class="reactive-button" data-view-target="takesView" type="button">Queue</button>
+          <button class="reactive-button" data-view-target="healthView" type="button">Diagnostics</button>
         </div>
-      </section>
+      </footer>
     </div>
 
     <dialog id="helpModal" class="help-modal" aria-labelledby="helpTitle">

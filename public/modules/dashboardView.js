@@ -172,6 +172,12 @@ export function renderGlobalStatus({ health, parser } = {}) {
   state.lastHealth = health || state.lastHealth;
   state.lastParser = parser || state.lastParser;
   renderDegradedBanner({ health: state.lastHealth, parser: state.lastParser });
+  const footer = $("footerBackendStatus");
+  if (footer) {
+    const backendOk = Boolean(state.lastHealth?.bigMac?.ok);
+    footer.textContent = backendOk ? "BigMac · connected" : "BigMac · check";
+    footer.className = `footer-pill ${backendOk ? "ok" : "warn"}`;
+  }
   target.innerHTML = [
     compactCount("Wrapper 7870", health?.wrapper?.ok ? "Online" : "Check", health?.wrapper?.ok ? "ok" : "warn"),
     compactCount("Chatterbox 7860", health?.tunnel?.ok ? "Online" : "Check", health?.tunnel?.ok ? "ok" : "warn"),
