@@ -75,6 +75,26 @@ export function $(id) {
   return document.getElementById(id);
 }
 
+// Canonical scene resolution. Prefers freshly parsed (in-memory) scenes, then
+// saved scenes. Honors state.currentSceneId so multi-scene scripts no longer
+// silently collapse to scenes[0]. Falls back to the first scene only when no
+// active id matches.
+export function getSceneList() {
+  const parsed = state.parsedScript?.scenes;
+  if (parsed && parsed.length) return parsed;
+  return state.scenes || [];
+}
+
+export function getActiveScene() {
+  const scenes = getSceneList();
+  if (!scenes.length) return null;
+  return scenes.find((scene) => scene.id === state.currentSceneId) || scenes[0];
+}
+
+export function getActiveSceneId() {
+  return getActiveScene()?.id || "";
+}
+
 export function escapeHtml(value) {
   return String(value || "")
     .replaceAll("&", "&amp;")

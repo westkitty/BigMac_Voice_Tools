@@ -4,7 +4,8 @@ import { renderGlobalStatus } from "./dashboardView.js";
 
 function pill(label, item) {
   const ok = item?.ok;
-  return `<button class="status-pill ${ok ? "ok" : "warn"}" title="${escapeHtml(item?.detail || "")}" type="button">${label}: ${ok ? "OK" : "Check"}</button>`;
+  // Read-only status indicator: a span, not a focusable button that does nothing.
+  return `<span class="status-pill ${ok ? "ok" : "warn"}" role="status" title="${escapeHtml(item?.detail || "")}">${escapeHtml(label)}: ${ok ? "OK" : "Check"}</span>`;
 }
 
 export function renderParserModelOptions(parser) {
@@ -54,7 +55,7 @@ export async function loadHealth() {
   } catch (error) {
     renderGlobalStatus();
     const statusRail = $("statusRail");
-    if (statusRail) statusRail.innerHTML = `<button class="status-pill warn" type="button">Health: Failed</button>`;
+    if (statusRail) statusRail.innerHTML = `<span class="status-pill warn" role="status">Health: Failed</span>`;
     const diagnosticsText = $("diagnosticsText");
     if (diagnosticsText) diagnosticsText.textContent = error.message;
     const healthScreenDetails = $("healthScreenDetails");

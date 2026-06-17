@@ -1,5 +1,5 @@
 import { api } from "./api.js";
-import { $, escapeHtml, pushUiError, setDramaStatus, state } from "./state.js";
+import { $, escapeHtml, pushUiError, setDramaStatus, state, getActiveScene, getSceneList } from "./state.js";
 import { loadTakes } from "./voiceLabView.js";
 import { renderSpeakerMapping, getSpeakerStatus, propagateMappingsToLines } from "./audioDrama/speakerMapping.js";
 import { preflightRenderLine } from "./audioDrama/renderPreflight.js";
@@ -78,9 +78,10 @@ export function renderDrama() {
       }).join("")
     : `<div class="empty-state">No characters for this project.</div>`;
 
+  renderSceneSelector();
   renderSpeakerMapping(onSpeakerMappingChanged);
 
-  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+  const scene = getActiveScene();
   renderParsedLines(scene);
   resetPreviewAssembly();
   loadRecentPreviews().catch((error) => pushUiError("Recent previews", error));
@@ -93,7 +94,7 @@ async function onSpeakerMappingChanged() {
   renderSpeakerMapping(onSpeakerMappingChanged);
   
   // Update line cards status badges and actions
-  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+  const scene = getActiveScene();
   if (scene && scene.lines) {
     for (const line of scene.lines) {
       updateLineMappingUI(line);
@@ -239,7 +240,7 @@ export function updateLineSpeechSettingsSummary(lineId) {
   const container = document.querySelector(`.speech-settings-summary[data-line-id="${CSS.escape(lineId)}"]`);
   if (!container) return;
 
-  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+  const scene = getActiveScene();
   if (!scene) return;
   const line = scene.lines.find(l => l.id === lineId);
   if (!line) return;
@@ -415,14 +416,14 @@ async function handleLineRenderClick(lineId, btn) {
     btn.innerHTML = originalHtml;
     btn.disabled = false;
     // Update mapping UI
-    const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+    const scene = getActiveScene();
     const line = scene?.lines?.find(l => l.id === lineId);
     if (line) updateLineMappingUI(line);
   }
 }
 
 function collectEditedScene() {
-  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+  const scene = getActiveScene();
   if (!scene) return null;
   const lines = scene.lines.map((line) => {
     const updated = { ...line };
@@ -462,18 +463,107 @@ function collectEditedScene() {
 }
 
 export async function parseRawScript() {
-  $("parserOutput").textContent = "Parsing through the BigMac-backed Ollama tunnel...";
+  const summaryEl = $("parserSummary");
+  if (summaryEl) summaryEl.textContent = "Parsing through the BigMac-backed Ollama tunnel…";
+  $("parserOutput").textContent = "Parsing…";
   const parsed = await api("/api/script/parse", {
     method: "POST",
     body: JSON.stringify({ rawText: $("rawScriptText").value, model: $("parserModelSelect")?.value || state.parserModel || "auto" })
   }).catch((error) => ({ ok: false, error: error.message }));
+
+  // Raw JSON is preserved for debugging, but demoted behind the details fold.
   $("parserOutput").textContent = JSON.stringify(parsed, null, 2);
-  if (parsed.ok) {
+
+  if (parsed.ok && parsed.result) {
     state.parsedScript = parsed.result;
     state.speakerMappings = {}; // reset mapping
+    // Active scene defaults to the first parsed scene; the selector can change it.
+    state.currentSceneId = parsed.result.scenes?.[0]?.id || "";
+    renderParseSummary(parsed.result);
+    renderSceneSelector();
     renderSpeakerMapping(onSpeakerMappingChanged);
-    renderParsedLines(parsed.result.scenes[0]);
+    renderParsedLines(getActiveScene());
+  } else {
+    renderParseSummary(null, parsed.error || "Parse failed.");
+    renderSceneSelector();
   }
+  renderWorkflowStatus();
+}
+
+// Human-readable parse summary that replaces the raw-JSON-as-success surface.
+export function renderParseSummary(result, errorMessage = "") {
+  const el = $("parserSummary");
+  if (!el) return;
+  if (!result) {
+    el.innerHTML = `<div class="parse-summary error"><strong>Could not parse the script.</strong><p class="meta-line">${escapeHtml(errorMessage)}</p><p class="meta-line">Check the raw output below and the Ollama tunnel in Diagnostics.</p></div>`;
+    return;
+  }
+  const scenes = result.scenes || [];
+  const totalLines = scenes.reduce((sum, scene) => sum + (scene.lines?.length || 0), 0);
+  const speakerSet = new Set();
+  let unknownCount = 0;
+  scenes.forEach((scene) => (scene.lines || []).forEach((line) => {
+    const sp = String(line.speaker || "").trim();
+    if (sp) speakerSet.add(sp);
+    if (sp.toUpperCase() === "UNKNOWN") unknownCount += 1;
+  }));
+  const warnings = scenes.flatMap((scene) => scene.warnings || []);
+  const active = getActiveScene();
+  const multi = scenes.length > 1;
+
+  const chips = [
+    `<span class="parse-chip">${scenes.length} scene${scenes.length === 1 ? "" : "s"}</span>`,
+    `<span class="parse-chip">${speakerSet.size} speaker${speakerSet.size === 1 ? "" : "s"}</span>`,
+    `<span class="parse-chip">${totalLines} line${totalLines === 1 ? "" : "s"}</span>`,
+    unknownCount ? `<span class="parse-chip warn">${unknownCount} UNKNOWN line${unknownCount === 1 ? "" : "s"}</span>` : "",
+    warnings.length ? `<span class="parse-chip warn">${warnings.length} warning${warnings.length === 1 ? "" : "s"}</span>` : ""
+  ].filter(Boolean).join("");
+
+  const nextAction = unknownCount
+    ? "Next: assign a character + voice to UNKNOWN speakers in Step 3, then Save Scene."
+    : "Next: bind speakers to voices in Step 3, then Save Scene.";
+
+  const multiNote = multi
+    ? `<p class="meta-line warn">${scenes.length} scenes parsed. Only the selected scene saves when you press Save Scene — switch scenes with the selector above and save each one.</p>`
+    : "";
+
+  el.innerHTML = `
+    <div class="parse-summary">
+      <div class="parse-summary-chips">${chips}</div>
+      <p class="meta-line">Active scene: <strong>${escapeHtml(active?.title || "Scene 1")}</strong>${multi ? ` (1 of ${scenes.length})` : ""}.</p>
+      ${warnings.length ? `<p class="meta-line warn">Warnings: ${escapeHtml(warnings.slice(0, 4).join("; "))}${warnings.length > 4 ? "…" : ""}</p>` : ""}
+      ${multiNote}
+      <p class="meta-line next-action">${escapeHtml(nextAction)}</p>
+    </div>
+  `;
+}
+
+// Populate the scene selector from the active scene list (parsed or saved).
+export function renderSceneSelector() {
+  const select = $("sceneSelect");
+  if (!select) return;
+  const scenes = getSceneList();
+  const wrap = $("sceneSelectRow");
+  if (!scenes.length) {
+    select.innerHTML = `<option value="">No scenes yet</option>`;
+    if (wrap) wrap.hidden = true;
+    return;
+  }
+  if (wrap) wrap.hidden = scenes.length <= 1;
+  select.innerHTML = scenes.map((scene, index) =>
+    `<option value="${escapeHtml(scene.id)}" ${scene.id === state.currentSceneId ? "selected" : ""}>${escapeHtml(scene.title || `Scene ${index + 1}`)} — ${scene.lines?.length || 0} lines</option>`
+  ).join("");
+}
+
+// Switch the active scene without losing in-memory parsed data.
+export function selectScene(sceneId) {
+  state.currentSceneId = sceneId || "";
+  renderSceneSelector();
+  renderSpeakerMapping(onSpeakerMappingChanged);
+  renderParsedLines(getActiveScene());
+  resetPreviewAssembly();
+  loadRecentPreviews().catch((error) => pushUiError("Recent previews", error));
+  renderWorkflowStatus();
 }
 
 export async function saveParsedScene() {

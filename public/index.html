@@ -12,13 +12,15 @@
     <div class="app-shell studio-shell">
       <header class="topbar studio-topbar glow-panel">
         <div class="brand-lockup">
-          <p class="eyebrow">Local production cockpit</p>
-          <h1>BigMac VoiceTools</h1>
-          <p class="meta-line">MacBook control surface to BigMac inference backend. Canonical URL: <strong>127.0.0.1:7870</strong>.</p>
+          <p class="eyebrow">Local audio drama studio</p>
+          <h1>Local Audio Drama Studio</h1>
+          <p class="meta-line">Parse scripts, cast voices, render dialogue, review takes, and assemble previews — locally.</p>
+          <p class="meta-line subtle-infra">MacBook control surface &#8594; BigMac inference backend · <strong>127.0.0.1:7870</strong></p>
         </div>
         <div id="globalStatusSummary" class="global-status-summary" aria-live="polite">
           <span class="studio-metric warn"><strong>Checking</strong><small>Stack health</small></span>
         </div>
+        <button class="reactive-button" id="focusModeToggle" data-tip="Hide advanced controls and debug panels for a calmer, guided view" type="button" aria-pressed="false">Focus mode</button>
         <button class="reactive-button" id="openStudioWindowButton" data-tip="Open the studio in a dedicated browser window" type="button">Open Window</button>
         <a class="reactive-button help-button" href="/wrapper.html" target="_blank" rel="noopener">Wrapper</a>
         <button class="reactive-button help-button" data-help="global" data-tip="Open the studio help guide" type="button">Help</button>
@@ -151,7 +153,23 @@
               <audio id="recordPreview" controls class="hidden"></audio>
               <p class="meta-line" id="recordStatus">Record a short clean sample, then save it.</p>
             </div>
-            <button class="reactive-button primary" type="submit">Save voice</button>
+            <details class="sample-checklist-fold advanced-only">
+              <summary>Sample quality checklist</summary>
+              <ul class="sample-checklist">
+                <li>Quiet room, no background music or other voices</li>
+                <li>Clear, natural speech at a steady level</li>
+                <li>No clipping or distortion; consistent microphone</li>
+                <li>Roughly 20–60 seconds of audio works well</li>
+              </ul>
+              <p class="meta-line">Quality is your responsibility — this local tool does not analyze the recording for you.</p>
+            </details>
+            <div id="voiceFileMeta" class="voice-file-meta" hidden aria-live="polite"></div>
+            <label class="consent-gate">
+              <input type="checkbox" id="voiceConsent">
+              <span>I have the right and permission to clone and use this voice. Local-only processing does not replace consent.</span>
+            </label>
+            <button class="reactive-button primary" id="saveVoiceButton" type="submit" disabled aria-describedby="voiceConsentNote">Save voice</button>
+            <p class="meta-line" id="voiceConsentNote">Confirm consent above to enable saving.</p>
           </form>
 
           <div id="voiceList" class="voice-list"></div>
@@ -314,7 +332,15 @@ UNKNOWN: Is anyone still there?</textarea>
                 <button class="reactive-button primary" id="parseScriptButton" type="button">Parse with BigMac Ollama</button>
                 <button class="reactive-button" id="saveSceneButton" type="button">Save Scene</button>
               </div>
-              <pre id="parserOutput">Parser output will appear here.</pre>
+              <div id="parserSummary" class="parser-summary" aria-live="polite">Parse a script to see a readable summary of scenes, speakers, and lines.</div>
+              <div id="sceneSelectRow" class="scene-select-row" hidden>
+                <label for="sceneSelect"><span>Active scene</span></label>
+                <select id="sceneSelect" data-tip="Switch between parsed scenes. Save Scene saves only the active scene."></select>
+              </div>
+              <details class="parser-raw-fold">
+                <summary data-tip="Raw parser JSON for debugging">Raw parser output (debug)</summary>
+                <pre id="parserOutput">Parser output will appear here.</pre>
+              </details>
             </section>
             <section class="workflow-panel" data-drama-step-panel="bind">
               <div class="step-label">Step 3</div>
@@ -489,6 +515,18 @@ UNKNOWN: Is anyone still there?</textarea>
         <button class="icon-button" id="helpClose" type="button" data-tip="Close help" aria-label="Close help">×</button>
       </div>
       <div id="helpBody" class="help-body"></div>
+    </dialog>
+
+    <dialog id="confirmModal" class="confirm-modal" aria-labelledby="confirmModalTitle" aria-describedby="confirmModalMessage">
+      <div class="modal-head">
+        <h2 id="confirmModalTitle">Confirm</h2>
+      </div>
+      <p id="confirmModalMessage" class="confirm-modal-message"></p>
+      <p id="confirmModalMeta" class="confirm-modal-meta"></p>
+      <div class="confirm-modal-actions">
+        <button class="reactive-button" id="confirmModalCancel" type="button">Cancel</button>
+        <button class="reactive-button destructive" id="confirmModalConfirm" type="button">Delete</button>
+      </div>
     </dialog>
 
     <script src="/app.js" type="module"></script>

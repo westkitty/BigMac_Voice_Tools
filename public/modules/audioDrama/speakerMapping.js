@@ -1,4 +1,4 @@
-import { $, escapeHtml, state } from "../state.js";
+import { $, escapeHtml, state, getActiveScene, setDramaStatus, pushUiError } from "../state.js";
 import { api } from "../api.js";
 
 // Determine status of a speaker name
@@ -33,7 +33,7 @@ export function renderSpeakerMapping(onMappingChanged) {
   const container = $("speakerMappingList");
   if (!container) return;
 
-  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+  const scene = getActiveScene();
   if (!scene || !scene.lines || !scene.lines.length) {
     container.innerHTML = "No parsed lines yet.";
     container.classList.add("empty-state");
@@ -152,11 +152,32 @@ async function handleQuickCreateCharacter(speaker, onMappingChanged) {
     if (onMappingChanged) await onMappingChanged();
   } catch (error) {
     console.error("Failed to quick create character", error);
+    pushUiError("Quick-create character", error);
+    setDramaStatus(`Could not create character "${speaker}": ${error.message || error}`);
+    showSpeakerRowError(speaker, `Create failed: ${error.message || "request error"}`);
   }
 }
 
+// Surface a quick-create failure inline on the speaker's row and reset the
+// dropdown so the user is not left staring at a phantom "[Create…]" selection.
+function showSpeakerRowError(speaker, message) {
+  const row = document.querySelector(`tr[data-speaker="${CSS.escape(speaker)}"]`);
+  if (!row) return;
+  const select = row.querySelector(".speaker-char-select");
+  if (select) select.value = "";
+  let cell = row.querySelector(".speaker-row-error");
+  if (!cell) {
+    const statusCell = row.querySelector("td:last-child");
+    if (!statusCell) return;
+    cell = document.createElement("div");
+    cell.className = "speaker-row-error";
+    statusCell.appendChild(cell);
+  }
+  cell.textContent = message;
+}
+
 export function propagateMappingsToLines() {
-  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+  const scene = getActiveScene();
   if (!scene || !scene.lines) return;
 
   for (const line of scene.lines) {

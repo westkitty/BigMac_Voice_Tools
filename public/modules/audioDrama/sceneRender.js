@@ -1,16 +1,29 @@
-import { $, escapeHtml, state, setDramaStatus } from "../state.js";
+import { $, escapeHtml, state, setDramaStatus, getActiveScene, getActiveSceneId } from "../state.js";
 import { api } from "../api.js";
 import { preflightRenderLine } from "./renderPreflight.js";
 import { renderLineTakes } from "./takeReview.js";
+import { getSpeakerStatus } from "./speakerMapping.js";
 
 /**
  * Filter all lines in the active scene to find those that pass the preflight check.
  * @returns {Array<object>} List of lines ready for rendering.
  */
 export function getReadySceneLines() {
-  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+  const scene = getActiveScene();
   if (!scene || !scene.lines || !scene.lines.length) return [];
   return scene.lines.filter(line => preflightRenderLine(line.id).ok);
+}
+
+/**
+ * Lines in the active scene that are NOT ready, with a human reason for each.
+ * @returns {Array<{line: object, reason: string}>}
+ */
+export function getBlockedSceneLines() {
+  const scene = getActiveScene();
+  if (!scene || !scene.lines || !scene.lines.length) return [];
+  return scene.lines
+    .filter((line) => !preflightRenderLine(line.id).ok)
+    .map((line) => ({ line, reason: getSpeakerStatus(line.speaker).status }));
 }
 
 /**
@@ -23,26 +36,23 @@ export async function handleRenderReadyLines() {
     return;
   }
   
-  const sceneId = state.currentSceneId || state.scenes[0]?.id;
+  const sceneId = getActiveSceneId();
   if (!sceneId) {
     setDramaStatus("Save the scene before rendering.");
     return;
   }
-  
-  const scene = state.parsedScript?.scenes?.[0] || state.scenes?.[0];
+
+  const scene = getActiveScene();
   if (!scene || !scene.lines || !scene.lines.length) {
     setDramaStatus("No lines in the scene to render.");
     return;
   }
-  
+
   const readyLines = getReadySceneLines();
+  const blocked = getBlockedSceneLines();
   if (readyLines.length === 0) {
     setDramaStatus("No ready lines found. Make sure speakers are mapped and lines have text.");
-    const summaryContainer = $("sceneRenderSummary");
-    if (summaryContainer) {
-      summaryContainer.innerHTML = "";
-      summaryContainer.classList.add("hidden");
-    }
+    renderBlockedPreview(blocked);
     return;
   }
 
@@ -50,10 +60,13 @@ export async function handleRenderReadyLines() {
   const originalHtml = btn.innerHTML;
   btn.innerHTML = "Rendering Scene...";
   btn.disabled = true;
-  setDramaStatus(`Rendering ${readyLines.length} ready lines sequentially...`);
+  const blockedNote = blocked.length ? ` (${blocked.length} blocked line${blocked.length === 1 ? "" : "s"} will be skipped)` : "";
+  setDramaStatus(`Rendering ${readyLines.length} ready line${readyLines.length === 1 ? "" : "s"} sequentially${blockedNote}...`);
 
   const defaultTakes = Number($("sceneTakesInput")?.value || 2);
-  const allLineIds = scene.lines.map(line => line.id);
+  // Submit only the ready set. The backend still re-validates each line as a
+  // safety net, but the request now matches the action's promise.
+  const readyLineIds = readyLines.map(line => line.id);
 
   try {
     const res = await api("/api/scenes/render", {
@@ -61,7 +74,7 @@ export async function handleRenderReadyLines() {
       body: JSON.stringify({
         projectId,
         sceneId,
-        lineIds: allLineIds,
+        lineIds: readyLineIds,
         takes: defaultTakes
       })
     });
@@ -87,6 +100,39 @@ export async function handleRenderReadyLines() {
     btn.innerHTML = originalHtml;
     btn.disabled = false;
   }
+}
+
+/**
+ * Show blocked lines (with reasons) in the render summary area so the user sees
+ * why nothing rendered, before any request is sent.
+ * @param {Array<{line: object, reason: string}>} blocked
+ */
+export function renderBlockedPreview(blocked) {
+  const container = $("sceneRenderSummary");
+  if (!container) return;
+  if (!blocked.length) {
+    container.innerHTML = "";
+    container.classList.add("hidden");
+    return;
+  }
+  container.classList.remove("hidden");
+  const rows = blocked.map(({ line, reason }) => {
+    const excerpt = String(line.text || "").slice(0, 60);
+    return `
+      <div class="summary-result-item summary-skipped">
+        <span class="summary-item-id">${escapeHtml(line.speaker || "—")}</span>
+        <span class="summary-item-status">Blocked</span>
+        <span class="summary-item-details">${escapeHtml(reason)} — "${escapeHtml(excerpt)}"</span>
+      </div>
+    `;
+  }).join("");
+  container.innerHTML = `
+    <div class="render-summary-panel glass-card">
+      <h4>No ready lines to render</h4>
+      <p class="meta-line">${blocked.length} line${blocked.length === 1 ? "" : "s"} blocked. Bind a character with a voice to each speaker, then render again.</p>
+      <div class="summary-results-list">${rows}</div>
+    </div>
+  `;
 }
 
 /**

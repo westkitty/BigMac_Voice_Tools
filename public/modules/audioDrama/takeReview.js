@@ -1,11 +1,12 @@
-import { $, escapeHtml, state, setDramaStatus } from "../state.js";
+import { $, escapeHtml, state, setDramaStatus, getActiveSceneId } from "../state.js";
 import { api } from "../api.js";
 import { resetPreviewAssembly } from "./previewAssembly.js";
+import { confirmDestructive } from "../navigation.js";
 
 // Render takes grouped under a specific line card
 export function renderLineTakes(lineId) {
   const projectId = $("projectSelect").value;
-  const sceneId = state.currentSceneId || state.scenes[0]?.id;
+  const sceneId = getActiveSceneId();
   if (!projectId || !sceneId) return;
 
   const lineTakes = state.takes.filter(
@@ -163,7 +164,15 @@ export function renderLineTakes(lineId) {
       } else if (action === "delete-selected") {
         const toDeleteIds = lineTakes.filter(t => state.selectedTakeIds.has(t.id)).map(t => t.id);
         if (toDeleteIds.length === 0) return;
-        if (!confirm(`Delete ${toDeleteIds.length} selected takes for this line? This cannot be undone.`)) return;
+        const affectsSelected = state.selectedTakesMap[lineId] && toDeleteIds.includes(state.selectedTakesMap[lineId]);
+        const confirmed = await confirmDestructive({
+          title: "Delete selected takes",
+          message: `Permanently delete the selected take audio for line ${lineId}.`,
+          count: toDeleteIds.length,
+          scope: affectsSelected ? "Includes this line's chosen take — preview will reset" : `Line ${lineId}`,
+          irreversible: true
+        });
+        if (!confirmed) return;
 
         setDramaStatus(`Deleting ${toDeleteIds.length} takes...`);
         try {
@@ -202,7 +211,7 @@ export function renderLineTakes(lineId) {
 // Select a take and update selection state immediately
 export async function handleSelectTake(lineId, takeId) {
   const projectId = $("projectSelect").value;
-  const sceneId = state.currentSceneId || state.scenes[0]?.id;
+  const sceneId = getActiveSceneId();
   if (!projectId || !sceneId) return;
 
   try {

@@ -2,8 +2,8 @@ import { api } from "./modules/api.js";
 import { $, pushUiError, setMessage, state } from "./modules/state.js";
 import { loadHealth, loadLogs } from "./modules/healthView.js";
 import { loadDashboard, renderWorkflowStatus, setDramaStep } from "./modules/dashboardView.js";
-import { loadDrama, createCharacter, createProject, parseRawScript, refreshSelectedTakes, renderFirstLine, saveParsedScene, handleRenderReadyLines } from "./modules/audioDramaView.js";
-import { copyText, initDrawers, openHelp, openStudioWindow, setView } from "./modules/navigation.js";
+import { loadDrama, createCharacter, createProject, parseRawScript, refreshSelectedTakes, renderFirstLine, saveParsedScene, handleRenderReadyLines, selectScene } from "./modules/audioDramaView.js";
+import { copyText, confirmDestructive, initDrawers, openHelp, openStudioWindow, setView, restoreViewFromHash } from "./modules/navigation.js";
 import { initPreviewAssembly } from "./modules/audioDrama/previewAssembly.js";
 import {
   formatDocumentFile,
@@ -41,8 +41,8 @@ async function handleDocumentClick(event) {
 
   const copyCommand = event.target.closest("[data-copy-command]");
   if (copyCommand) {
-    copyText(copyCommand.dataset.copyCommand, "Command copied.");
-    setMessage("Command copied.", "ok");
+    const ok = await copyText(copyCommand.dataset.copyCommand, "Command copied.");
+    setMessage(ok ? "Command copied." : "Copy failed — copy it manually from the prompt.", ok ? "ok" : "error");
   }
 
   const dramaStep = event.target.closest("[data-drama-step]");
@@ -59,13 +59,20 @@ async function handleDocumentClick(event) {
 
   const copyPath = event.target.closest("[data-copy-path]");
   if (copyPath) {
-    copyText(copyPath.dataset.copyPath, "Output path copied.");
-    setMessage("Output path copied.", "ok");
+    const ok = await copyText(copyPath.dataset.copyPath, "Output path copied.");
+    setMessage(ok ? "Output path copied." : "Copy failed — copy it manually from the prompt.", ok ? "ok" : "error");
   }
 
   const deleteTake = event.target.closest("[data-delete-take]");
   if (deleteTake) {
-    if (!confirm("Delete this output file and remove the take?")) return;
+    const confirmed = await confirmDestructive({
+      title: "Delete take",
+      message: "Permanently delete this output file and remove the take.",
+      count: 1,
+      scope: "Single take",
+      irreversible: true
+    });
+    if (!confirmed) return;
     await api("/api/takes/delete", {
       method: "POST",
       body: JSON.stringify({ id: deleteTake.dataset.deleteTake })
@@ -100,7 +107,14 @@ async function handleDocumentClick(event) {
     } else if (action === "delete-selected") {
       const selectedCount = state.selectedTakeIds.size;
       if (selectedCount === 0) return;
-      if (!confirm(`Delete ${selectedCount} selected takes? This cannot be undone.`)) return;
+      const confirmedSelected = await confirmDestructive({
+        title: "Delete selected takes",
+        message: "Permanently delete the selected take audio files.",
+        count: selectedCount,
+        scope: "Selected takes across all lines",
+        irreversible: true
+      });
+      if (!confirmedSelected) return;
 
       const takeIds = Array.from(state.selectedTakeIds);
       setMessage(`Deleting ${selectedCount} takes...`);
@@ -127,7 +141,14 @@ async function handleDocumentClick(event) {
     } else if (action === "clear-all") {
       const totalCount = state.takes.length;
       if (totalCount === 0) return;
-      if (!confirm(`Delete all ${totalCount} visible takes? This cannot be undone.`)) return;
+      const confirmedClear = await confirmDestructive({
+        title: "Delete ALL takes",
+        message: `Permanently delete every visible take (${totalCount}). Chosen takes will be lost and previews will reset.`,
+        count: totalCount,
+        scope: "All visible takes",
+        irreversible: true
+      });
+      if (!confirmedClear) return;
 
       const takeIds = state.takes.map(t => t.id);
       setMessage(`Clearing all ${totalCount} takes...`);
@@ -159,6 +180,56 @@ async function handleDocumentClick(event) {
 
   const help = event.target.closest("[data-help]");
   if (help) openHelp(help.dataset.help);
+}
+
+// --- Consent gate: Save voice stays disabled until consent is acknowledged ---
+function updateConsentGate() {
+  const consent = $("voiceConsent");
+  const button = $("saveVoiceButton");
+  const note = $("voiceConsentNote");
+  if (!button) return;
+  const ok = Boolean(consent?.checked);
+  button.disabled = !ok;
+  if (note) note.textContent = ok ? "Consent confirmed. You can save this voice." : "Confirm consent above to enable saving.";
+}
+
+// Show basic, safe file metadata after a reference file is chosen.
+function showVoiceFileMeta() {
+  const input = $("voiceFile");
+  const box = $("voiceFileMeta");
+  if (!box) return;
+  const file = input?.files?.[0];
+  if (!file) {
+    box.hidden = true;
+    box.textContent = "";
+    return;
+  }
+  const kb = Math.round(file.size / 1024);
+  const size = kb > 1024 ? `${(kb / 1024).toFixed(1)} MB` : `${kb} KB`;
+  box.hidden = false;
+  box.textContent = `Selected: ${file.name} · ${file.type || "audio"} · ${size}`;
+}
+
+// --- Focus mode: hide advanced controls + debug panels via a body class ---
+const FOCUS_KEY = "bvt:focusMode";
+function applyFocusMode(on) {
+  document.body.classList.toggle("focus-mode", on);
+  const toggle = $("focusModeToggle");
+  if (toggle) {
+    toggle.setAttribute("aria-pressed", on ? "true" : "false");
+    toggle.classList.toggle("active", on);
+    toggle.textContent = on ? "Focus mode: on" : "Focus mode";
+  }
+}
+function toggleFocusMode() {
+  const on = !document.body.classList.contains("focus-mode");
+  try { localStorage.setItem(FOCUS_KEY, on ? "1" : "0"); } catch { /* ignore */ }
+  applyFocusMode(on);
+}
+function initFocusMode() {
+  let on = false;
+  try { on = localStorage.getItem(FOCUS_KEY) === "1"; } catch { /* ignore */ }
+  applyFocusMode(on);
 }
 
 function bind(id, eventName, handler) {
@@ -209,13 +280,17 @@ function bindEvents() {
   });
   bind("parseScriptButton", "click", parseRawScript);
   bind("saveSceneButton", "click", saveParsedScene);
+  bind("sceneSelect", "change", (event) => selectScene(event.target.value));
+  bind("voiceConsent", "change", updateConsentGate);
+  bind("voiceFile", "change", showVoiceFileMeta);
+  bind("focusModeToggle", "click", toggleFocusMode);
   bind("renderReadyLinesButton", "click", handleRenderReadyLines);
   bind("renderFirstLineButton", "click", renderFirstLine);
   bind("refreshSelectedButton", "click", refreshSelectedTakes);
   bind("healthScreenRefresh", "click", loadHealth);
-  bind("copyDiagnosticsButton", "click", () => {
-    copyText($("healthScreenDetails")?.textContent || "", "Diagnostics copied.");
-    setMessage("Diagnostics copied.", "ok");
+  bind("copyDiagnosticsButton", "click", async () => {
+    const ok = await copyText($("healthScreenDetails")?.textContent || "", "Diagnostics copied.");
+    setMessage(ok ? "Diagnostics copied." : "Copy failed — copy it manually from the prompt.", ok ? "ok" : "error");
   });
   bind("previewToggle", "click", () => {
     state.showPreview = !state.showPreview;
@@ -248,6 +323,8 @@ function bindEvents() {
   });
   initPreviewAssembly();
   initDrawers();
+  initFocusMode();
+  updateConsentGate();
   setDramaStep(state.activeDramaStep);
 }
 
@@ -264,3 +341,5 @@ await Promise.all([
   loadDashboard().catch((error) => pushUiError("Dashboard", error))
 ]);
 renderWorkflowStatus();
+// Restore the last section from the URL hash (refresh / deep-link), if present.
+restoreViewFromHash();

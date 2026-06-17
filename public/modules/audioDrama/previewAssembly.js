@@ -1,4 +1,4 @@
-import { $, escapeHtml, state, setDramaStatus, pushUiError } from "../state.js";
+import { $, escapeHtml, state, setDramaStatus, pushUiError, getActiveSceneId } from "../state.js";
 import { api } from "../api.js";
 import { renderWorkflowStatus } from "../dashboardView.js";
 
@@ -44,7 +44,7 @@ export async function handleBuildScenePreview() {
     return;
   }
 
-  const sceneId = state.currentSceneId || state.scenes[0]?.id;
+  const sceneId = getActiveSceneId();
   if (!sceneId) {
     setDramaStatus("Save the scene before assembling a preview.");
     return;
@@ -157,7 +157,7 @@ export async function handleBuildScenePreview() {
     if (audioPlayer && audioContainer) {
       audioPlayer.src = res.preview.audioUrl;
       audioPlayer.load();
-      audioContainer.style.display = "block";
+      audioContainer.hidden = false;
     }
 
     const openLink = $("previewOpenLink");
@@ -219,7 +219,7 @@ export function resetPreviewAssembly() {
   const openLink = $("previewOpenLink");
   const downloadLink = $("previewDownloadLink");
 
-  if (audioContainer) audioContainer.style.display = "none";
+  if (audioContainer) audioContainer.hidden = true;
   if (audioPlayer) {
     audioPlayer.src = "";
     audioPlayer.load();
@@ -239,7 +239,7 @@ export function resetPreviewAssembly() {
  */
 export async function loadRecentPreviews() {
   const projectId = $("projectSelect")?.value;
-  const sceneId = state.currentSceneId || state.scenes?.[0]?.id;
+  const sceneId = getActiveSceneId();
   const listContainer = $("latestPreviewsList");
   if (!listContainer) return;
 
@@ -314,7 +314,7 @@ export async function loadRecentPreviews() {
           audioPlayer.src = url;
           audioPlayer.load();
           audioPlayer.play();
-          audioContainer.style.display = "block";
+          audioContainer.hidden = false;
           
           // Also set the main actions container links
           const openLink = $("previewOpenLink");

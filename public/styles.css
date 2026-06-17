@@ -15,8 +15,19 @@
   --shadow: rgba(0, 0, 0, 0.44);
   --radius: 18px;
   --fast: 140ms;
+  --normal: 200ms;
   --slow: 260ms;
   --ease: cubic-bezier(.2, .9, .2, 1);
+
+  /* Status tokens — one source of truth for ready/warning/danger/info */
+  --status-ready: #7dffa8;
+  --status-warning: #ffd166;
+  --status-danger: #ff6b8a;
+  --status-info: #64e7ff;
+  --danger-surface: rgba(255, 107, 138, 0.12);
+  --danger-border: rgba(255, 107, 138, 0.5);
+  --danger-ink: #ffc9d4;
+  --focus-ring: 0 0 0 2px var(--bg), 0 0 0 4px var(--accent);
 
   /* Signal accent — true primary actions get a solid, high-contrast fill */
   --accent: #64e7ff;
@@ -2519,4 +2530,159 @@ body::before {
   .status-footer { flex-direction: column; align-items: stretch; }
   .footer-activity { white-space: normal; }
   .footer-actions { justify-content: flex-end; }
+}
+
+/* ============================================================
+   UI redesign pass — pipeline trust, consent, destructive, focus
+   ============================================================ */
+
+/* Destructive button — dangerous actions must look dangerous */
+.reactive-button.destructive,
+.chip.destructive {
+  background: var(--danger-surface);
+  border-color: var(--danger-border);
+  color: var(--danger-ink);
+}
+.reactive-button.destructive:hover,
+.chip.destructive:hover {
+  background: rgba(255, 107, 138, 0.2);
+  border-color: var(--status-danger);
+  color: #fff;
+}
+.reactive-button.destructive:disabled {
+  opacity: 0.45;
+  cursor: not-allowed;
+}
+
+/* Disabled buttons read as intentionally unavailable, not broken */
+.reactive-button:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Visible, consistent focus ring for keyboard users */
+.reactive-button:focus-visible,
+.chip:focus-visible,
+.nav-item:focus-visible,
+select:focus-visible,
+input:focus-visible,
+textarea:focus-visible,
+summary:focus-visible,
+h2:focus-visible,
+h3:focus-visible {
+  outline: none;
+  box-shadow: var(--focus-ring);
+  border-radius: 8px;
+}
+
+.subtle-infra { opacity: 0.62; font-size: var(--text-xs); }
+
+/* Parser summary — replaces the raw-JSON-as-success surface */
+.parser-summary {
+  border: 1px solid var(--line);
+  border-radius: 12px;
+  padding: 12px 14px;
+  margin-top: 12px;
+  background: var(--surface-1);
+  font-size: var(--text-sm);
+}
+.parse-summary-chips { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 8px; }
+.parse-chip {
+  display: inline-flex;
+  align-items: center;
+  font-weight: 700;
+  font-size: var(--text-xs);
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(125, 255, 168, 0.12);
+  color: var(--status-ready);
+  border: 1px solid rgba(125, 255, 168, 0.3);
+}
+.parse-chip.warn {
+  background: rgba(255, 209, 102, 0.12);
+  color: var(--status-warning);
+  border-color: rgba(255, 209, 102, 0.35);
+}
+.parse-summary.error strong { color: var(--status-danger); }
+.parser-summary .meta-line.warn { color: var(--status-warning); }
+.parser-summary .next-action { color: var(--status-info); font-weight: 600; }
+.parser-raw-fold { margin-top: 10px; }
+.parser-raw-fold > summary { cursor: pointer; font-size: var(--text-xs); color: var(--muted); }
+
+/* Scene selector for multi-scene scripts */
+.scene-select-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding: 10px 12px;
+  border: 1px solid var(--line-strong);
+  border-radius: 12px;
+  background: rgba(100, 231, 255, 0.06);
+}
+.scene-select-row label { margin: 0; font-weight: 700; font-size: var(--text-sm); }
+.scene-select-row select { flex: 1; }
+
+/* Consent gate + sample checklist */
+.consent-gate {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  margin: 8px 0;
+  padding: 10px 12px;
+  border: 1px solid var(--status-warning);
+  border-radius: 12px;
+  background: rgba(255, 209, 102, 0.08);
+  font-size: var(--text-sm);
+}
+.consent-gate input { margin-top: 3px; }
+.sample-checklist-fold > summary { cursor: pointer; font-weight: 600; font-size: var(--text-sm); }
+.sample-checklist { margin: 8px 0; padding-left: 18px; font-size: var(--text-xs); color: var(--muted); }
+.sample-checklist li { margin-bottom: 3px; }
+.voice-file-meta {
+  font-size: var(--text-xs);
+  color: var(--muted);
+  margin: 4px 0;
+  font-family: var(--font-mono);
+}
+
+/* Speaker row inline error */
+.speaker-row-error {
+  margin-top: 4px;
+  font-size: var(--text-xs);
+  color: var(--danger-ink);
+  font-weight: 600;
+}
+
+/* Scoped destructive confirmation modal */
+.confirm-modal {
+  border: 1px solid var(--danger-border);
+  border-radius: var(--radius);
+  background: var(--panel-strong);
+  color: var(--text);
+  max-width: 460px;
+  padding: 20px;
+}
+.confirm-modal::backdrop { background: rgba(0, 0, 0, 0.6); }
+.confirm-modal .modal-head h2 { color: var(--danger-ink); }
+.confirm-modal-message { margin: 8px 0; }
+.confirm-modal-meta { font-size: var(--text-xs); color: var(--status-warning); margin-bottom: 16px; }
+.confirm-modal-actions { display: flex; justify-content: flex-end; gap: 10px; }
+
+/* Focus mode — hide advanced controls and debug surfaces */
+body.focus-mode .advanced-only,
+body.focus-mode .diagnostics-fold,
+body.focus-mode .parser-raw-fold,
+body.focus-mode .line-speech-details,
+body.focus-mode .character-defaults-fold {
+  display: none !important;
+}
+#focusModeToggle.active {
+  background: var(--accent);
+  color: var(--accent-ink);
+  border-color: transparent;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { animation-duration: 0.01ms !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
 }

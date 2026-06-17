@@ -23,6 +23,27 @@ function updateNav(activeId, { drawerOpen = false } = {}) {
   });
 }
 
+// Move keyboard focus to the heading of the newly active section so screen
+// readers and keyboard users land in the right place on navigation.
+function focusViewHeading(viewId) {
+  const el = $(viewId);
+  if (!el) return;
+  const headingId = el.getAttribute("aria-labelledby");
+  const heading = (headingId && $(headingId)) || el.querySelector("h2, h3");
+  if (!heading) return;
+  if (!heading.hasAttribute("tabindex")) heading.setAttribute("tabindex", "-1");
+  try { heading.focus({ preventScroll: false }); } catch { /* ignore */ }
+}
+
+// Keep the URL hash in sync so refresh/back can restore the active section.
+function syncHash(viewId) {
+  if (!viewId) return;
+  const next = `#${viewId}`;
+  if (window.location.hash !== next) {
+    try { window.history.replaceState(null, "", next); } catch { /* ignore */ }
+  }
+}
+
 function applyStage(viewId) {
   state.activeView = viewId;
   document.querySelectorAll(".app-view").forEach((view) => {
@@ -32,6 +53,8 @@ function applyStage(viewId) {
     view.setAttribute("aria-hidden", active ? "false" : "true");
   });
   updateNav(viewId);
+  syncHash(viewId);
+  focusViewHeading(viewId);
   document.dispatchEvent(new CustomEvent("bvt:view-change", { detail: { viewId } }));
 }
 
@@ -45,7 +68,18 @@ export function openDrawer(viewId) {
     try { el.showPopover(); } catch { /* already open */ }
   }
   updateNav(viewId, { drawerOpen: true });
+  syncHash(viewId);
+  focusViewHeading(viewId);
   document.dispatchEvent(new CustomEvent("bvt:view-change", { detail: { viewId } }));
+}
+
+// On load, restore the last section from the URL hash (refresh/deep-link).
+export function restoreViewFromHash() {
+  const id = (window.location.hash || "").replace(/^#/, "");
+  if (!id) return false;
+  if (!$(id)) return false;
+  setView(id);
+  return true;
 }
 
 export function setView(viewId) {
@@ -81,12 +115,69 @@ export function initDrawers() {
   });
 }
 
-export function copyText(value, successMessage = "Copied.") {
+// Honest clipboard copy. Resolves to true only when the write actually
+// succeeded. On failure it offers a manual-copy fallback and reports the
+// failure instead of pretending success.
+export async function copyText(value, successMessage = "Copied.") {
   if (!value) return false;
-  navigator.clipboard?.writeText(value).catch(() => {});
   const status = $("activityStatusText");
-  if (status) status.textContent = successMessage;
-  return true;
+  try {
+    if (!navigator.clipboard?.writeText) throw new Error("Clipboard API unavailable");
+    await navigator.clipboard.writeText(value);
+    if (status) status.textContent = successMessage;
+    return true;
+  } catch {
+    if (status) status.textContent = "Copy failed — copy the highlighted text manually.";
+    showManualCopyFallback(value);
+    return false;
+  }
+}
+
+function showManualCopyFallback(value) {
+  // window.prompt presents the value pre-selected so the user can Cmd+C it.
+  // Crude but reliable and, crucially, honest when the async API is blocked.
+  try {
+    window.prompt("Copy failed. Select and copy this manually:", value);
+  } catch {
+    /* prompt unavailable — the status line already reported the failure */
+  }
+}
+
+// Scoped destructive confirmation. Returns a Promise<boolean>. Renders a real
+// modal (count, scope, irreversibility) instead of a bare native confirm().
+export function confirmDestructive({ title = "Confirm deletion", message = "", count = 0, scope = "", irreversible = true } = {}) {
+  const dialog = $("confirmModal");
+  if (!dialog || typeof dialog.showModal !== "function") {
+    // Graceful fallback if the dialog is missing for any reason.
+    return Promise.resolve(window.confirm(`${title}\n\n${message}`));
+  }
+  $("confirmModalTitle").textContent = title;
+  $("confirmModalMessage").textContent = message;
+  const meta = $("confirmModalMeta");
+  if (meta) {
+    const bits = [];
+    if (count) bits.push(`${count} take${count === 1 ? "" : "s"} affected`);
+    if (scope) bits.push(scope);
+    if (irreversible) bits.push("This cannot be undone — there is no restore.");
+    meta.textContent = bits.join(" · ");
+  }
+  return new Promise((resolve) => {
+    const confirmBtn = $("confirmModalConfirm");
+    const cancelBtn = $("confirmModalCancel");
+    const cleanup = (result) => {
+      confirmBtn.removeEventListener("click", onConfirm);
+      cancelBtn.removeEventListener("click", onCancel);
+      dialog.removeEventListener("cancel", onCancel);
+      if (dialog.open) dialog.close();
+      resolve(result);
+    };
+    const onConfirm = () => cleanup(true);
+    const onCancel = () => cleanup(false);
+    confirmBtn.addEventListener("click", onConfirm);
+    cancelBtn.addEventListener("click", onCancel);
+    dialog.addEventListener("cancel", onCancel);
+    dialog.showModal();
+  });
 }
 
 export function openHelp(key) {
