@@ -182,17 +182,6 @@ async function handleDocumentClick(event) {
   if (help) openHelp(help.dataset.help);
 }
 
-// --- Consent gate: Save voice stays disabled until consent is acknowledged ---
-function updateConsentGate() {
-  const consent = $("voiceConsent");
-  const button = $("saveVoiceButton");
-  const note = $("voiceConsentNote");
-  if (!button) return;
-  const ok = Boolean(consent?.checked);
-  button.disabled = !ok;
-  if (note) note.textContent = ok ? "Consent confirmed. You can save this voice." : "Confirm consent above to enable saving.";
-}
-
 // Show basic, safe file metadata after a reference file is chosen.
 function showVoiceFileMeta() {
   const input = $("voiceFile");
@@ -281,7 +270,6 @@ function bindEvents() {
   bind("parseScriptButton", "click", parseRawScript);
   bind("saveSceneButton", "click", saveParsedScene);
   bind("sceneSelect", "change", (event) => selectScene(event.target.value));
-  bind("voiceConsent", "change", updateConsentGate);
   bind("voiceFile", "change", showVoiceFileMeta);
   bind("focusModeToggle", "click", toggleFocusMode);
   bind("renderReadyLinesButton", "click", handleRenderReadyLines);
@@ -324,7 +312,6 @@ function bindEvents() {
   initPreviewAssembly();
   initDrawers();
   initFocusMode();
-  updateConsentGate();
   setDramaStep(state.activeDramaStep);
 }
 

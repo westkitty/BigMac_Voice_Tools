@@ -259,11 +259,6 @@ export function renderScriptPreview() {
 
 export async function saveVoice(event) {
   event.preventDefault();
-  // Consent gate: never save a cloned voice without an explicit acknowledgement.
-  if (!$("voiceConsent")?.checked) {
-    setMessage("Confirm you have permission to clone this voice before saving.", "error");
-    return;
-  }
   let fileName = "";
   let dataBase64 = "";
 
@@ -298,13 +293,8 @@ export async function saveVoice(event) {
   state.selectedVoiceId = voice.id;
   $("voiceForm").reset();
   clearRecording();
-  // Reset the consent gate so the next voice requires a fresh acknowledgement.
-  const saveButton = $("saveVoiceButton");
-  if (saveButton) saveButton.disabled = true;
   const fileMeta = $("voiceFileMeta");
   if (fileMeta) { fileMeta.hidden = true; fileMeta.textContent = ""; }
-  const consentNote = $("voiceConsentNote");
-  if (consentNote) consentNote.textContent = "Confirm consent above to enable saving.";
   setMessage(`Saved ${voice.name}.`, "ok");
   await loadVoices();
 }

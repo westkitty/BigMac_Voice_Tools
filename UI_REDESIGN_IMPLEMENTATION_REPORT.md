@@ -15,7 +15,7 @@ What changed and why, in one line each:
 - **Health pills are read-only spans**, not dead focusable buttons.
 - **CSS debt fixed:** `--normal` token defined; `.destructive` styling added; status/focus tokens introduced.
 - **Product leads with the creator outcome** ("Local Audio Drama Studio"), demoting infrastructure.
-- **Consent gate + sample checklist** added to voice creation (Save disabled until consent; enforced in `saveVoice`).
+- **Sample-quality checklist + file-info** added to voice creation (guidance only; non-blocking). _(A consent gate was added then removed at the owner's request — this is a private, local tool.)_
 - **Focus mode** added as a body-class toggle (persisted) that hides advanced/debug surfaces — not a second app.
 - **Halfway routing:** URL hash syncs with the active section, refresh/deep-link restores it, and focus moves to the section heading.
 
@@ -62,7 +62,7 @@ The app's local-first architecture, canonical `127.0.0.1:7870` URL, launch doctr
 | Undefined `--normal` token | ✅ Fixed | `styles.css :root --normal: 200ms` | `CSS defines --normal and styles destructive buttons` |
 | `.destructive` class had no CSS | ✅ Fixed | `styles.css .reactive-button.destructive` | same as above |
 | Product leads with infrastructure | ✅ Fixed | `index.html` topbar `<h1>Local Audio Drama Studio</h1>` | manual (landmarks test still passes) |
-| No consent gate in voice creation | ✅ Fixed | `index.html #voiceConsent`; `voiceLabView.saveVoice` guard | `voice creation has a consent gate` |
+| No consent gate in voice creation | ⛔ Removed by owner | Consent gate was implemented then removed at the owner's request (private, local tool). Non-blocking sample checklist + file-info retained | — |
 
 ## 5. Redesign Features Implemented
 
@@ -72,7 +72,7 @@ The app's local-first architecture, canonical `127.0.0.1:7870` URL, launch doctr
 | Scene selector (active-scene state) | ✅ New | `#sceneSelect`, shows for multi-scene; saved + parsed scenes |
 | Blocked-lines preview before render | ✅ New | `renderBlockedPreview()` lists speaker + reason + excerpt |
 | Capability-led product framing | ✅ Partial | Topbar + dashboard hero reframed to outcome; raw diagnostics already foldered in Diagnostics drawer. Full capability-card remap deferred (see §6) |
-| Casting consent + sample checklist | ✅ New | Consent gate enforced; checklist is guidance only (no fake SNR analysis) |
+| Casting sample checklist + file info | ✅ New (consent gate removed by owner) | Checklist + basic file metadata are guidance only (no fake SNR analysis); blocking consent gate was removed per owner request |
 | Render Control trust fixes | ✅ Partial | Ready-set payload, blocked preview, human labels in blocked list. Full live queue/log + retry deferred |
 | Scoped destructive confirmation | ✅ New | `confirmDestructive()` modal across all take-delete paths |
 | Preview readiness (mode select) | ✅ Pre-existing, preserved | `previewModeSelect` skip/fail-on-missing already present; visibility bug fixed |
@@ -113,7 +113,7 @@ New tests in `tests/uiRedesign.test.js` (14): 4 behavioral `getActiveScene` case
 > Requires the live stack: `npm start` → `http://127.0.0.1:7870` with the BigMac backend, Chatterbox (7860), and Ollama (11435) tunnels up. Backend-dependent steps cannot be exercised offline.
 
 - **First launch dashboard:** Home leads with "Local Audio Drama Studio" and the creator-outcome line; infra/URL is the smaller subtle line; service status in header/footer.
-- **Add voice consent gate:** Open Voices. "Save voice" is disabled. Check the consent box → button enables; note updates. Choose a file → metadata line appears. Save → form resets and the gate re-disables.
+- **Add voice:** Open Voices. Optionally expand the sample-quality checklist. Choose a file → metadata line appears. Save voice works directly (no consent gate). Form resets after save.
 - **Parse multi-scene script:** Paste a script with multiple scenes → readable summary (scenes/speakers/lines/UNKNOWN/warnings/next action) appears; raw JSON only under "Raw parser output (debug)". Scene selector appears when >1 scene.
 - **Switch active scene:** Change `#sceneSelect` → speaker binding, line editor, and preview update to the selected scene; "Active scene (1 of N)" reflects it.
 - **Bind speaker:** In Step 3, assign/create a character + voice → row status moves Needs character → Needs voice → Ready.

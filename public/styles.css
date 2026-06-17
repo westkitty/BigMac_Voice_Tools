@@ -2533,7 +2533,7 @@ body::before {
 }
 
 /* ============================================================
-   UI redesign pass — pipeline trust, consent, destructive, focus
+   UI redesign pass — pipeline trust, destructive safety, focus mode
    ============================================================ */
 
 /* Destructive button — dangerous actions must look dangerous */
@@ -2623,19 +2623,7 @@ h3:focus-visible {
 .scene-select-row label { margin: 0; font-weight: 700; font-size: var(--text-sm); }
 .scene-select-row select { flex: 1; }
 
-/* Consent gate + sample checklist */
-.consent-gate {
-  display: flex;
-  gap: 10px;
-  align-items: flex-start;
-  margin: 8px 0;
-  padding: 10px 12px;
-  border: 1px solid var(--status-warning);
-  border-radius: 12px;
-  background: rgba(255, 209, 102, 0.08);
-  font-size: var(--text-sm);
-}
-.consent-gate input { margin-top: 3px; }
+/* Sample quality checklist (guidance only) */
 .sample-checklist-fold > summary { cursor: pointer; font-weight: 600; font-size: var(--text-sm); }
 .sample-checklist { margin: 8px 0; padding-left: 18px; font-size: var(--text-xs); color: var(--muted); }
 .sample-checklist li { margin-bottom: 3px; }

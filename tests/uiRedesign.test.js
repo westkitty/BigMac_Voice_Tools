@@ -100,13 +100,6 @@ test("take deletion uses scoped confirmation, not native confirm", () => {
   assert.ok(indexHtml.includes('id="confirmModal"'));
 });
 
-// --- Consent gate present and enforced ---
-test("voice creation has a consent gate", () => {
-  assert.ok(indexHtml.includes('id="voiceConsent"'));
-  assert.ok(indexHtml.includes('id="saveVoiceButton"'));
-  assert.ok(voiceLabJs.includes('$("voiceConsent")?.checked'));
-});
-
 // --- CSS debt fixed ---
 test("CSS defines --normal and styles destructive buttons", () => {
   assert.ok(stylesCss.includes("--normal:"));
