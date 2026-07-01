@@ -2577,6 +2577,13 @@ h3:focus-visible {
 
 .subtle-infra { opacity: 0.62; font-size: var(--text-xs); }
 
+/* Make the dashboard generate actions unmistakable */
+.generate-cta {
+  font-size: var(--text-base);
+  font-weight: 800;
+  padding: 14px 18px;
+}
+
 /* Parser summary — replaces the raw-JSON-as-success surface */
 .parser-summary {
   border: 1px solid var(--line);

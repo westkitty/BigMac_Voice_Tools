@@ -64,6 +64,9 @@ export function openDrawer(viewId) {
   DRAWER_VIEWS.forEach((id) => {
     if (id !== viewId) $(id)?.hidePopover?.();
   });
+  // Drawers are popover="manual" (workspaces, not transient menus). Manual
+  // popovers do NOT light-dismiss, so showing synchronously from the triggering
+  // click is safe — an "auto" popover would be killed by that same click.
   if (el.showPopover && el.matches && !el.matches(":popover-open")) {
     try { el.showPopover(); } catch { /* already open */ }
   }
@@ -97,8 +100,26 @@ export function setView(viewId) {
   }
 }
 
-// Keep nav highlight in sync when a drawer is light-dismissed (Esc / outside click).
+// Manual popovers don't close on Esc; restore that affordance ourselves so the
+// drawers still feel like dismissible panels.
+function closeOpenDrawer() {
+  for (const id of DRAWER_VIEWS) {
+    const el = $(id);
+    if (el?.matches?.(":popover-open")) {
+      el.hidePopover?.();
+      return true;
+    }
+  }
+  return false;
+}
+
+// Keep nav highlight in sync when a drawer is closed (Esc / close button / nav switch).
 export function initDrawers() {
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape" && closeOpenDrawer()) {
+      event.preventDefault();
+    }
+  });
   DRAWER_VIEWS.forEach((id) => {
     const el = $(id);
     if (!el) return;

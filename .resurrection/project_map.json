@@ -1,0 +1,57 @@
+{
+  "commands": [
+    {
+      "category": "run/dev",
+      "command": "npm run start",
+      "source": "package.json:scripts.start"
+    },
+    {
+      "category": "test",
+      "command": "npm run test",
+      "source": "package.json:scripts.test"
+    }
+  ],
+  "duplicate_candidates": [
+    "sibling-near-duplicate: dex",
+    "sibling-near-duplicate: dex_voice_cloner_backups"
+  ],
+  "fragile_files": [
+    "package.json",
+    "README.md"
+  ],
+  "git_state": {
+    "available": true,
+    "branch": "ui-redesign-pipeline-trust",
+    "dirty": true,
+    "head": "bc6df53d76c1898bd9e4edd05d49872c1b854b76",
+    "head_subject": "Remove voice consent gate",
+    "is_repo": true,
+    "remote_url": "git@github.com:westkitty/BigMac_Voice_Tools.git",
+    "repo_root": "/Users/andrew/dex_voice_cloner",
+    "staged_count": 1,
+    "tracked_modified_count": 2,
+    "untracked_count": 2
+  },
+  "identity": {
+    "name": "dex_voice_cloner",
+    "path": "/Users/andrew/dex_voice_cloner"
+  },
+  "project_type": {
+    "confidence": 0.71,
+    "evidence": [
+      "Found package.json"
+    ],
+    "purpose": "A web or Node.js project named dex voice cloner.",
+    "type": "node_web_app"
+  },
+  "recommended_next_actions": [
+    "Inspect the current uncommitted Git changes before making new edits.",
+    "Back up or review fragile configuration files before any risky changes.",
+    "Validate the project with the hinted test command: npm run test",
+    "Validate the project with the hinted run/dev command: npm run start",
+    "Read `.resurrection/project_report.md` and make one bounded change at a time."
+  ],
+  "scan_timestamp": "2026-06-27T18:38:46+00:00",
+  "scanner_version": "1.1.0",
+  "secret_risks": []
+}

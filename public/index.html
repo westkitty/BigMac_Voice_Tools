@@ -31,10 +31,10 @@
         <aside class="studio-sidebar glow-panel" aria-label="BigMac VoiceTools navigation">
           <nav class="sidebar-section" aria-label="Primary">
             <button class="nav-item active" data-view-target="dashboardView" type="button"><span>Home</span><small>Status + next action</small></button>
-            <button class="nav-item nav-drawer" data-view-target="audioDramaView" type="button"><span>Script &amp; Render</span><small>Drama Studio pipeline</small></button>
-            <button class="nav-item nav-drawer" data-view-target="voiceLabView" type="button"><span>Voices</span><small>Capture &amp; references</small></button>
-            <button class="nav-item nav-drawer" data-view-target="takesView" type="button"><span>Queue</span><small>Generated takes</small></button>
-            <button class="nav-item nav-drawer" data-view-target="voicesView" type="button"><span>Index</span><small>All saved voices</small></button>
+            <button class="nav-item nav-drawer" data-view-target="voiceLabView" type="button"><span>🎙 Voice Lab</span><small>Generate a single voice take</small></button>
+            <button class="nav-item nav-drawer" data-view-target="audioDramaView" type="button"><span>🎬 Drama Studio</span><small>Generate a dialogue scene</small></button>
+            <button class="nav-item nav-drawer" data-view-target="takesView" type="button"><span>Takes</span><small>Generated audio outputs</small></button>
+            <button class="nav-item nav-drawer" data-view-target="voicesView" type="button"><span>Voice library</span><small>Saved reference voices</small></button>
             <button class="nav-item nav-drawer" data-view-target="healthView" type="button"><span>Diagnostics</span><small>Ports + logs</small></button>
           </nav>
           <div class="sidebar-doctrine">
@@ -49,13 +49,13 @@
           <section id="dashboardView" class="app-view dashboard-view active-view" aria-labelledby="dashboardTitle">
             <div class="dashboard-hero">
               <div class="hero-copy">
-                <p class="eyebrow">Command Center</p>
-                <h2 id="dashboardTitle">Your local production console</h2>
-                <p class="meta-line">Write a script, bind voices, render takes, then export — all on the BigMac backend. Live service status sits in the header and footer.</p>
+                <p class="eyebrow">Start here</p>
+                <h2 id="dashboardTitle">What do you want to generate?</h2>
+                <p class="meta-line">One voice line → Voice Lab. A multi-character scene → Drama Studio.</p>
               </div>
               <div class="dashboard-actions">
-                <button class="reactive-button primary" data-view-target="audioDramaView" type="button">Open Drama Studio</button>
-                <button class="reactive-button" data-view-target="voiceLabView" type="button">Voices</button>
+                <button class="reactive-button primary generate-cta" data-view-target="voiceLabView" type="button">🎙 Generate a voice take</button>
+                <button class="reactive-button primary generate-cta" data-view-target="audioDramaView" type="button">🎬 Build a dialogue scene</button>
                 <button class="reactive-button" data-view-target="healthView" type="button">Diagnostics</button>
               </div>
             </div>
@@ -68,7 +68,7 @@
               </article>
             </div>
           </section>
-      <main id="voiceLabView" class="drawer-view drawer-wide glow-panel" popover="auto" aria-labelledby="voiceLabTitle">
+      <main id="voiceLabView" class="drawer-view drawer-wide glow-panel" popover="manual" aria-labelledby="voiceLabTitle">
         <header class="drawer-head">
           <div>
             <p class="eyebrow">Voice Library</p>
@@ -250,7 +250,7 @@
         </div>
       </main>
 
-      <section id="audioDramaView" class="drawer-view drawer-wide glow-panel" popover="auto" aria-labelledby="audioDramaTitle">
+      <section id="audioDramaView" class="drawer-view drawer-wide glow-panel" popover="manual" aria-labelledby="audioDramaTitle">
         <header class="drawer-head">
           <div>
             <p class="eyebrow">Drama Studio</p>
@@ -416,7 +416,7 @@ UNKNOWN: Is anyone still there?</textarea>
         </div>
       </section>
 
-      <section id="takesView" class="drawer-view glow-panel" popover="auto" aria-labelledby="takesScreenTitle">
+      <section id="takesView" class="drawer-view glow-panel" popover="manual" aria-labelledby="takesScreenTitle">
         <header class="drawer-head">
           <div>
             <p class="eyebrow">Render Queue</p>
@@ -429,7 +429,7 @@ UNKNOWN: Is anyone still there?</textarea>
         </div>
       </section>
 
-      <section id="voicesView" class="drawer-view glow-panel" popover="auto" aria-labelledby="voicesScreenTitle">
+      <section id="voicesView" class="drawer-view glow-panel" popover="manual" aria-labelledby="voicesScreenTitle">
         <header class="drawer-head">
           <div>
             <p class="eyebrow">Voices</p>
@@ -442,7 +442,7 @@ UNKNOWN: Is anyone still there?</textarea>
         </div>
       </section>
 
-      <section id="healthView" class="drawer-view glow-panel" popover="auto" aria-labelledby="healthScreenTitle">
+      <section id="healthView" class="drawer-view glow-panel" popover="manual" aria-labelledby="healthScreenTitle">
         <header class="drawer-head">
           <div>
             <p class="eyebrow">System / Logs</p>

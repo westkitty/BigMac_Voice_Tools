@@ -1,0 +1,64 @@
+{
+  "git_state": {
+    "available": true,
+    "branch": "ui-redesign-pipeline-trust",
+    "dirty": true,
+    "head": "bc6df53d76c1898bd9e4edd05d49872c1b854b76",
+    "head_subject": "Remove voice consent gate",
+    "is_repo": true,
+    "remote_url": "git@github.com:westkitty/BigMac_Voice_Tools.git",
+    "repo_root": "/Users/andrew/dex_voice_cloner",
+    "staged_count": 1,
+    "tracked_modified_count": 2,
+    "untracked_count": 2
+  },
+  "identity": {
+    "name": "dex_voice_cloner",
+    "path": "/Users/andrew/dex_voice_cloner"
+  },
+  "project_type": {
+    "confidence": 0.71,
+    "evidence": [
+      "Found package.json"
+    ],
+    "purpose": "A web or Node.js project named dex voice cloner.",
+    "type": "node_web_app"
+  },
+  "recommended_next_actions": [
+    "Inspect the current uncommitted Git changes before making new edits.",
+    "Back up or review fragile configuration files before any risky changes.",
+    "Validate the project with the hinted test command: npm run test",
+    "Validate the project with the hinted run/dev command: npm run start",
+    "Read `.resurrection/project_report.md` and make one bounded change at a time."
+  ],
+  "scan_timestamp": "2026-06-27T18:38:46+00:00",
+  "scanner_version": "1.1.0",
+  "signature": {
+    "git_dirty": {
+      "dirty": true,
+      "staged_count": 1,
+      "tracked_modified_count": 2,
+      "untracked_count": 2
+    },
+    "git_head": "bc6df53d76c1898bd9e4edd05d49872c1b854b76",
+    "project_type": "node_web_app",
+    "scanner_version": "1.1.0",
+    "watched_files": {
+      "README.md": {
+        "mtime_ns": 1781524802000000000,
+        "sha256": "87716c854f45abd580cab0069768555ea1ca1aa83f7b2eefa05d265b6496f478",
+        "size": 3535
+      },
+      "package.json": {
+        "mtime_ns": 1781524802000000000,
+        "sha256": "c06df867573e2bd799d8f8b6d2e9774673d7996109f5967b734b99c0a713b8cf",
+        "size": 235
+      },
+      "public/index.html": {
+        "mtime_ns": 1781736128033359179,
+        "sha256": "4b75b170891e95544ff53b670785b42310b20c39fee8562a7cef0f6b141d302e",
+        "size": 32223
+      }
+    }
+  }
+}
